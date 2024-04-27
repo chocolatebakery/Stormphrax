@@ -2,7 +2,7 @@
 # BUILD WITH CMAKE PER THE INSTRUCTIONS IN THE README
 
 VERSION := $(file < version.txt)
-EVALFILE = src/eval/random.nnue
+EVALFILE = src/eval/random_header.nnue
 
 ifndef EXE
     EXE = stormphrax-$(VERSION)
