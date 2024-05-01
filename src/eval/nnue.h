@@ -62,7 +62,7 @@ namespace stormphrax::eval
 		// [black, white]
 		std::array<bool, 2> refresh{};
 
-		StaticVector<PieceSquare, 2> sub{};
+		StaticVector<PieceSquare, 12> sub{}; //Enlarge the Vector for atomic captures
 		StaticVector<PieceSquare, 2> add{};
 
 		inline auto setRefresh(Color c)
@@ -140,7 +140,14 @@ namespace stormphrax::eval
 					refreshAccumulator(*next, c, bbs, m_refreshTable, king);
 					continue;
 				}
-
+				//Think of a solution to atomic (Multiple captures) addcount=0 subcount > 1
+				if (addCount == 0 && subCount > 1) {
+					for (int i=0; i < subCount;i++) {
+						auto [subPiece, subSquare] = updates.sub[i];
+						auto sub = featureIndex(c, subPiece, subSquare, king);
+						next->subFrom(*m_curr, g_network.featureTransformer(), c, sub);
+					}
+				}
 				if (addCount == 1 && subCount == 1) // regular non-capture
 				{
 					const auto [subPiece, subSquare] = updates.sub[0];

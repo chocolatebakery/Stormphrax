@@ -184,12 +184,23 @@ namespace stormphrax
 
 			auto key = state.key;
 
-			key ^= keys::pieceSquare(moving, move.src());
-			key ^= keys::pieceSquare(moving, move.dst());
-
-			if (captured != Piece::None)
+			if (captured != Piece::None) {
 				key ^= keys::pieceSquare(captured, move.dst());
-
+				auto boom = attacks::getKingAttacks(move.dst());
+				while(boom) {
+					auto boomsq = static_cast<Square>(util::ctz(boom));
+					boom &= boom - 1;
+					auto piece_boom = state.boards.pieceAt(boomsq);
+					if ((piece_boom != Piece::None) && (pieceType(piece_boom) != PieceType::Pawn)) {
+						key ^= keys::pieceSquare(piece_boom, boomsq);
+				}
+			}
+				key ^= keys::pieceSquare(moving, move.src());
+			}
+			else {
+				key ^= keys::pieceSquare(moving, move.src());
+				key ^= keys::pieceSquare(moving, move.dst());
+			}
 			key ^= keys::color();
 
 			return key;
@@ -217,8 +228,9 @@ namespace stormphrax
 			const auto knights = bbs.knights();
 			attackers |= knights & attacks::getKnightAttacks(square);
 
-			const auto kings = bbs.kings();
-			attackers |= kings & attacks::getKingAttacks(square);
+			/*const auto kings = bbs.kings();
+			attackers |= kings & attacks::getKingAttacks(square);*/
+			//Ignore King attacks
 
 			return attackers;
 		}
@@ -247,8 +259,9 @@ namespace stormphrax
 			const auto knights = bbs.knights(attacker);
 			attackers |= knights & attacks::getKnightAttacks(square);
 
-			const auto kings = bbs.kings(attacker);
-			attackers |= kings & attacks::getKingAttacks(square);
+			//const auto kings = bbs.kings(attacker);
+			//attackers |= kings & attacks::getKingAttacks(square);
+			//Ignore King attacks
 
 			return attackers;
 		}
@@ -279,9 +292,10 @@ namespace stormphrax
 				!(pawns & attacks::getPawnAttacks(square, oppColor(attacker))).empty())
 				return true;
 
-			if (const auto kings = bbs.kings(attacker);
-				!(kings & attacks::getKingAttacks(square)).empty())
-				return true;
+			//if (const auto kings = bbs.kings(attacker);
+				//!(kings & attacks::getKingAttacks(square)).empty())
+				//return true;
+			//Ignore King Attacks
 
 			const auto queens = bbs.queens(attacker);
 
@@ -320,6 +334,35 @@ namespace stormphrax
 			}
 
 			return false;
+		}
+
+		[[nodiscard]] inline auto isVariantOver() const { 
+
+				const auto &bbs = this->bbs();
+
+				const auto blackKingCount = bbs.forPiece(Piece::BlackKing).popcount();
+				const auto whiteKingCount = bbs.forPiece(Piece::WhiteKing).popcount();
+
+				return ((blackKingCount != 1) || (whiteKingCount != 1)); 
+			}
+		[[nodiscard]] inline auto isAtomicWin() const { 
+
+				const auto &bbs = this->bbs();
+
+				const auto theirPiece = ((toMove() == Color::White) ? Piece::BlackKing : Piece::WhiteKing);
+				const auto theirKing = bbs.forPiece(theirPiece).popcount();
+
+				return (theirKing != 1); 
+			}
+		[[nodiscard]] inline auto isAtomicLoss() const { 
+
+				const auto &bbs = this->bbs();
+
+				const auto ourPiece = ((toMove() == Color::White) ? Piece::WhiteKing : Piece::BlackKing);
+				const auto ourKing = bbs.forPiece(ourPiece).popcount();
+
+				return (ourKing != 1); 
+
 		}
 
 		[[nodiscard]] inline auto blackKing() const { return currState().blackKing(); }
@@ -518,10 +561,68 @@ namespace stormphrax
 		template <bool UpdateKeys = true, bool UpdateNnue = true>
 		auto enPassant(Piece pawn, Square src, Square dst, eval::NnueUpdates &nnueUpdates) -> Piece;
 
+		//Function to see whether Kings are connected or not
+		[[nodiscard]] inline auto connected_kings() const {
+			const auto &state = currState();
+			const auto &bbs = this->bbs();
+			assert(((bbs.kings(Color::White)) != NULL));
+			assert(((bbs.kings(Color::Black)) != NULL));
+
+			const auto bbksq = bbs.kings(Color::Black);
+
+			if (attacks::getKingAttacks(state.king(Color::White)) & bbksq) {
+				return true;
+			}
+			return false;
+		}
+
+		//See if Kings are connected or not after a move
+		[[nodiscard]] inline auto connected_kings(Move m) const {
+			const auto &bbs = this->bbs();
+			const auto &state = currState();
+			assert(((bbs.kings(Color::White)) != NULL));
+			assert(((bbs.kings(Color::Black)) != NULL));
+
+			const auto moveSrc = m.src();
+			const auto moveDst = m.dst();
+
+			const auto movedp = state.boards.pieceAt(moveSrc);
+
+			const auto us = pieceColor(state.boards.pieceAt(moveSrc));
+			const auto them = oppColor(us);
+			const auto oppking = bbs.kings(them);
+			if (pieceType(movedp) != PieceType::King) {
+				return connected_kings();
+			}
+			else if ((pieceType(movedp) == PieceType::King) && (attacks::getKingAttacks(m.dst()) & oppking)) {
+				return true;
+			}
+			return false;
+		}
+
+		//See if Kings are connected or not in the provided state/board -> For FEN parse
+		[[nodiscard]] inline auto connected_kings(const BoardState &thisstate, const BitboardSet &thisbbs) const {
+			assert(((thisbbs.kings(Color::White)) != NULL));
+			assert(((thisbbs.kings(Color::Black)) != NULL));
+
+			const auto bbksq = thisbbs.kings(Color::Black);
+
+			if (attacks::getKingAttacks(thisstate.king(Color::White)) & bbksq) {
+				return true;
+			}
+			return false;
+		}
+
 		[[nodiscard]] inline auto calcCheckers() const
 		{
 			const auto color = toMove();
 			const auto &state = currState();
+			
+			//Checks are false if Kings are connected
+			Bitboard empty{};
+			if (connected_kings()) {
+				return empty;
+			}
 
 			return attackersTo(state.king(color), oppColor(color));
 		}
@@ -599,7 +700,8 @@ namespace stormphrax
 				threats |= pawns.shiftDownLeft() | pawns.shiftDownRight();
 			else threats |= pawns.shiftUpLeft() | pawns.shiftUpRight();
 
-			threats |= attacks::getKingAttacks(state.king(them));
+			//threats |= attacks::getKingAttacks(state.king(them));
+			//Ignore King Threats
 
 			return threats;
 		}

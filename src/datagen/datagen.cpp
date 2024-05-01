@@ -116,7 +116,7 @@ namespace stormphrax::datagen
 
 		constexpr Score VerificationScoreLimit = 1000;
 
-		constexpr Score WinAdjMinScore = 2500;
+		constexpr Score WinAdjMinScore = 10000;
 		constexpr Score DrawAdjMaxScore = 10;
 
 		constexpr u32 WinAdjMaxPlies = 5;
@@ -211,7 +211,7 @@ namespace stormphrax::datagen
 				thread->pos.clearStateHistory();
 				thread->nnueState.reset(thread->pos.bbs(), thread->pos.blackKing(), thread->pos.whiteKing());
 
-				thread->maxDepth = 10;
+				thread->maxDepth = 8;
 				limiter.setSoftNodeLimit(std::numeric_limits<usize>::max());
 				limiter.setHardNodeLimit(VerificationHardNodeLimit);
 
@@ -244,7 +244,12 @@ namespace stormphrax::datagen
 
 					if (!move)
 					{
-						if (thread->pos.isCheck())
+						if (thread->pos.isVariantOver()) {
+							outcome = thread->pos.toMove() == Color::Black
+								? Outcome::WhiteWin
+								: Outcome::WhiteLoss;
+						}
+						else if (thread->pos.isCheck())
 							outcome = thread->pos.toMove() == Color::Black
 								? Outcome::WhiteWin
 								: Outcome::WhiteLoss;
@@ -292,7 +297,9 @@ namespace stormphrax::datagen
 							outcome = Outcome::Draw;
 					}
 
-					const bool filtered = thread->pos.isCheck() || thread->pos.isNoisy(move);
+					//const bool filtered = thread->pos.isCheck() || thread->pos.isNoisy(move);
+
+					const bool filtered = thread->pos.isAtomicLoss() || thread->pos.isAtomicWin(); //Filter no kings
 
 					thread->pos.applyMoveUnchecked<true, false>(move, &thread->nnueState);
 

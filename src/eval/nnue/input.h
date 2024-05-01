@@ -86,6 +86,16 @@ namespace stormphrax::eval::nnue
 				sub * OutputCount, add * OutputCount);
 		}
 
+		//Specifically for atomic, Removal of pieces in captures
+		inline auto subFrom(Accumulator<Ft> &src, const Ft &featureTransformer,
+			Color c, u32 suby)
+		{
+			assert(suby < InputCount);
+
+			subSub(src.forColor(c), forColor(c), featureTransformer.weights,
+				suby * OutputCount);
+		}
+
 		inline auto subSubAddFrom(Accumulator<Ft> &src, const Ft &featureTransformer,
 			Color c, u32 sub0, u32 sub1, u32 add)
 		{
@@ -146,6 +156,19 @@ namespace stormphrax::eval::nnue
 			{
 				dst[i] = src[i]
 					+ delta[addOffset + i]
+					- delta[subOffset + i];
+			}
+		}
+
+		//Removal of pieces Only for atomic
+		static inline auto subSub(std::span<Type, OutputCount> src, std::span<Type, OutputCount> dst,
+			std::span<const Type, WeightCount> delta, u32 subOffset) -> void
+		{
+			assert(subOffset + OutputCount <= delta.size());
+
+			for (u32 i = 0; i < OutputCount; ++i)
+			{
+				dst[i] = src[i]
 					- delta[subOffset + i];
 			}
 		}

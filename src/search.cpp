@@ -367,6 +367,7 @@ namespace stormphrax::search
 				else
 				{
 					std::cout << "info string no legal moves" << std::endl;
+					std::cout << "bestmove (none)" << std::endl;
 					break;
 				}
 			}
@@ -383,7 +384,10 @@ namespace stormphrax::search
 					report(thread, pv, depthCompleted, util::g_timer.time() - startTime, score, -ScoreInf, ScoreInf);
 				std::cout << "bestmove " << uci::moveToString(pv.moves[0]) << std::endl;
 			}
-			else std::cout << "info string no legal moves" << std::endl;
+			else { 
+				std::cout << "info string no legal moves" << std::endl;
+				std::cout << "bestmove (none)" << std::endl;
+			}
 		}
 
 		if (mainSearchThread)
@@ -462,6 +466,15 @@ namespace stormphrax::search
 		// a forced mate is found
 		if (!pvNode)
 		{
+			if (pos.isVariantOver()) {
+				if (pos.isAtomicWin()) {
+					return (ScoreMate - ply);
+				}
+				else if (pos.isAtomicLoss()) {
+					return (-ScoreMate + ply);
+				}
+			}
+
 			const auto mdAlpha = std::max(alpha, -ScoreMate + ply);
 			const auto mdBeta = std::min(beta, ScoreMate - ply - 1);
 
@@ -954,6 +967,15 @@ namespace stormphrax::search
 
 		if (legalMoves == 0)
 		{
+			if (pos.isVariantOver()) {
+				if (pos.isAtomicWin()) {
+					return (ScoreMate - ply);
+				}
+				else if (pos.isAtomicLoss()) {
+					return (-ScoreMate + ply);
+				}
+			}
+
 			if (stack.excluded)
 				return alpha;
 			return inCheck ? (-ScoreMate + ply) : 0;
@@ -978,6 +1000,15 @@ namespace stormphrax::search
 			return beta;
 
 		auto &pos = thread.pos;
+
+		if (pos.isVariantOver()) {
+			if (pos.isAtomicWin()) {
+				return (ScoreMate - ply);
+			}
+			else if (pos.isAtomicLoss()) {
+				return (-ScoreMate + ply);
+			}
+		}
 
 		if (alpha < 0 && pos.hasCycle(ply))
 		{
@@ -1037,10 +1068,11 @@ namespace stormphrax::search
 		QMoveGenerator generator{pos, NullMove, thread.moveStack[moveStackIdx].movegenData, ttMove};
 
 		while (const auto move = generator.next())
-		{
+		{		
 			if (!pos.isLegal(move.move))
 				continue;
-
+			//taken from Multi-Variant too
+			//auto futilityaltered = futility + see::gain_move(pos, move.move);
 			if (!pos.isCheck()
 				&& futility <= alpha
 				&& !see::see(pos, move.move, 1))
