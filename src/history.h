@@ -143,12 +143,12 @@ namespace stormphrax
 
 		inline auto updateNoisyScore(HistoryMove move, Bitboard threats, Piece captured, HistoryScore adjustment)
 		{
-			updateHistoryScore(noisyEntry(move, captured, false), adjustment); //Never defended in atomic
+			updateHistoryScore(noisyEntry(move, captured, threats[move.dst]), adjustment);
 		}
 
 		[[nodiscard]] inline auto noisyScore(HistoryMove move, Bitboard threats, Piece captured) const
 		{
-			return noisyEntry(move, captured, false); //Never Defended in atomic
+			return noisyEntry(move, captured, threats[move.dst]);
 		}
 
 		inline auto clear()
