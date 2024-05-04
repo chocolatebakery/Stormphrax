@@ -109,14 +109,14 @@ namespace stormphrax::datagen
 			usize m_hardNodeLimit{};
 		};
 
-		constexpr usize VerificationHardNodeLimit = 12582907; //Halve it for atomic
+		constexpr usize VerificationHardNodeLimit = 25165814; //Halve it for atomic
 
 		constexpr usize DatagenSoftNodeLimit = 2500;
 		constexpr usize DatagenHardNodeLimit = 4194304; //Halve it for atomic
 
 		constexpr Score VerificationScoreLimit = 1000;
 
-		constexpr Score WinAdjMinScore = 10000;
+		constexpr Score WinAdjMinScore = 2500; //Revert adjudication
 		constexpr Score DrawAdjMaxScore = 10;
 
 		constexpr u32 WinAdjMaxPlies = 5;
@@ -211,7 +211,7 @@ namespace stormphrax::datagen
 				thread->pos.clearStateHistory();
 				thread->nnueState.reset(thread->pos.bbs(), thread->pos.blackKing(), thread->pos.whiteKing());
 
-				thread->maxDepth = 9;
+				thread->maxDepth = 6; //Max depth 6
 				limiter.setSoftNodeLimit(std::numeric_limits<usize>::max());
 				limiter.setHardNodeLimit(VerificationHardNodeLimit);
 

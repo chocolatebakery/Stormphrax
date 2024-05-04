@@ -353,7 +353,11 @@ namespace stormphrax
 		{
 			if (pos.checkers().multiple())
 			{
-				return; //No noisy Moves for multiple checkers I think, need to see this when I have the patience.
+				auto their_king_radius = (attacks::getKingAttacks(pos.king(them))) & theirs;
+				generateSliders(noisy, pos, their_king_radius);
+				generatePawnsNoisy(noisy, pos, their_king_radius);
+				generateKnights(noisy, pos, their_king_radius);
+				return; //Only noisy moves allowed are if we can capture their king, when we're in check
 			}
 
 			dstMask = pos.checkers();
@@ -451,7 +455,11 @@ namespace stormphrax
 			if (pos.checkers().multiple())
 			{
 				generateKings<false>(dst, pos, atomicKingDstMask);
-				return; //Only kings can move during multiple checks, Need to recheck this when i Have the patience
+				auto their_king_radius = (attacks::getKingAttacks(pos.king(them))) & theirs;
+				generateSliders(dst, pos, their_king_radius);
+				generatePawnsNoisy(dst, pos, their_king_radius);
+				generateKnights(dst, pos, their_king_radius);
+				return; //Only kings can move during multiple checks OR explode the opposite king, Need to recheck this when i Have the patience
 			}
 			
 

@@ -1163,7 +1163,7 @@ namespace stormphrax
 				&& (attacks::getRookAttacks  (dst, kinglessOcc) & (theirQueens | bbs.  rooks(them))).empty();
 		}
 
-		// multiple checks can only be evaded with a king move
+		// multiple checks can only be evaded with a king move (During check, already solved above that we can explode king during any check)
 		if (state.checkers.multiple()
 			|| state.pinned[src] && !rayIntersecting(src, dst)[king])
 			return false;
