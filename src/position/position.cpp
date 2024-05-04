@@ -1087,8 +1087,11 @@ namespace stormphrax
 					boom_radius = Bitboard{};
 				}
 				auto their_king_radius = (attacks::getKingAttacks(theirKing.lowestSquare())) & theirs;
-				//dstMask |= boom_radius;
-				boom_radius |= their_king_radius;
+				// Opposite Kings can be exploded during check.
+				if (Bitboard::fromSquare(dst) & their_king_radius) {
+					return true;
+				}
+				// Pieces giving check can be exploded during check.
 				if (Bitboard::fromSquare(dst) & boom_radius) {
 					auto after_boom = bbs.occupancy() ^ ((boom | Bitboard::fromSquare(dst)) | Bitboard::fromSquare(src));
 					auto theirQueens = bbs.queens(them) & after_boom;
@@ -1118,31 +1121,6 @@ namespace stormphrax
 			
 
 		}
-
-		/*if (isCheck()) {
-			const auto ours = bbs.forColor(us);
-			const auto theirs = bbs.forColor(them);
-			auto theirKing = state.boards.bbs().kings(them);
-			auto boom_radius = (attacks::getKingAttacks(checker)) & theirs;
-			auto their_king_radius = (attacks::getKingAttacks(theirKing.lowestSquare())) & theirs;
-			//dstMask |= boom_radius;
-			boom_radius |= their_king_radius;
-			if (Bitboard::fromSquare(dst) & boom_radius) {
-				return true;
-			} //Can explode the opposite king or the piece checking
-		}*/
-
-		//Explosions that lead to checks are not legal
-		/*if (pieceType(state.boards.pieceAt(dst)) != PieceType::None) {
-			const auto boom_radius = (attacks::getKingAttacks(dst)) ^ bbs.pawns();
-			const auto theirQueens = bbs.queens(them) ^ boom_radius;
-			const auto theirBishops = bbs.bishops(them) ^ boom_radius;
-			const auto theirRooks = bbs.rooks(them) ^ boom_radius;
-			const auto after_boom = bbs.occupancy() ^ Bitboard::fromSquare(dst) ^ Bitboard::fromSquare(src) ^ boom_radius;
-			if (!connected_kings(move) && !((attacks::getBishopAttacks(king, after_boom) & (theirQueens | theirBishops).empty()) && (attacks::getRookAttacks  (king, after_boom) & (theirQueens | theirRooks).empty()))) {
-				return false;
-			}
-		}*/
 
 		if (move.type() == MoveType::Castling)
 		{

@@ -109,10 +109,10 @@ namespace stormphrax::datagen
 			usize m_hardNodeLimit{};
 		};
 
-		constexpr usize VerificationHardNodeLimit = 25165814;
+		constexpr usize VerificationHardNodeLimit = 12582907; //Halve it for atomic
 
-		constexpr usize DatagenSoftNodeLimit = 5000;
-		constexpr usize DatagenHardNodeLimit = 8388608;
+		constexpr usize DatagenSoftNodeLimit = 2500;
+		constexpr usize DatagenHardNodeLimit = 4194304; //Halve it for atomic
 
 		constexpr Score VerificationScoreLimit = 1000;
 
@@ -211,7 +211,7 @@ namespace stormphrax::datagen
 				thread->pos.clearStateHistory();
 				thread->nnueState.reset(thread->pos.bbs(), thread->pos.blackKing(), thread->pos.whiteKing());
 
-				thread->maxDepth = 8;
+				thread->maxDepth = 9;
 				limiter.setSoftNodeLimit(std::numeric_limits<usize>::max());
 				limiter.setHardNodeLimit(VerificationHardNodeLimit);
 
@@ -297,9 +297,8 @@ namespace stormphrax::datagen
 							outcome = Outcome::Draw;
 					}
 
-					//const bool filtered = thread->pos.isCheck() || thread->pos.isNoisy(move);
-
-					const bool filtered = thread->pos.isAtomicLoss() || thread->pos.isAtomicWin(); //Filter no kings
+					//const bool filtered = thread->pos.isCheck() || thread->pos.isNoisy(move) || thread->pos.isAtomicLoss() || thread->pos.isAtomicWin();
+					const bool filtered = thread->pos.isNoisy(move) || thread->pos.isAtomicLoss() || thread->pos.isAtomicWin(); //Filtering Captures and No King Positions Keeping Checks
 
 					thread->pos.applyMoveUnchecked<true, false>(move, &thread->nnueState);
 

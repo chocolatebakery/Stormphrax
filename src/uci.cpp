@@ -52,7 +52,7 @@ namespace stormphrax
 
 	namespace
 	{
-		constexpr auto Name = "Stormphrax";
+		constexpr auto Name = "Stormphrax-Atomic";
 		constexpr auto Version = SP_STRINGIFY(SP_VERSION);
 		constexpr auto Author = "Ciekce";
 

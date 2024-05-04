@@ -353,25 +353,7 @@ namespace stormphrax
 		{
 			if (pos.checkers().multiple())
 			{
-				auto multiple_checkers = pos.checkers().multiple();
-				Bitboard boom_radius {};
-				while(multiple_checkers) {
-					auto sq = static_cast<Square>(util::ctz(multiple_checkers));
-					multiple_checkers &= multiple_checkers - 1;
-					if (pieceType(pos.boards().pieceAt(sq)) != PieceType::Pawn) {
-						boom_radius |= attacks::getKingAttacks(sq) & theirs;
-					}					
-				} //check all checkers to see if they can explode
-				auto their_king_radius = (attacks::getKingAttacks(pos.king(them))) & theirs;
-				dstMask = boom_radius;
-				dstMask |= their_king_radius; // Can explode the checking piece or blow the opposite King while in check
-				pawnDstMask = boom_radius;
-				pawnDstMask |= their_king_radius;
-				
-				generateSliders(noisy, pos, dstMask);
-				generatePawnsNoisy(noisy, pos, pawnDstMask);
-				generateKnights(noisy, pos, dstMask);
-				return;
+				return; //No noisy Moves for multiple checkers I think, need to see this when I have the patience.
 			}
 
 			dstMask = pos.checkers();
@@ -468,25 +450,8 @@ namespace stormphrax
 		{
 			if (pos.checkers().multiple())
 			{
-				
-				auto multiple_checkers = pos.checkers().multiple();
-				Bitboard boom_radius {};
-				while(multiple_checkers) {
-					auto sq = static_cast<Square>(util::ctz(multiple_checkers));
-					multiple_checkers &= multiple_checkers - 1;
-					boom_radius |= attacks::getKingAttacks(sq) & theirs;
-				} //check all checkers to see if they can explode
-				auto their_king_radius = (attacks::getKingAttacks(pos.king(them))) & theirs;
-				dstMask = boom_radius;
-				dstMask |= their_king_radius; // Can explode the checking piece or blow the opposite King while in check
-				pawnDstMask = boom_radius;
-				pawnDstMask |= their_king_radius;
-
 				generateKings<false>(dst, pos, atomicKingDstMask);
-				generateSliders(dst, pos, dstMask);
-				generatePawnsNoisy(dst, pos, pawnDstMask);
-				generateKnights(dst, pos, dstMask);
-				return;
+				return; //Only kings can move during multiple checks, Need to recheck this when i Have the patience
 			}
 			
 

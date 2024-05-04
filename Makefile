@@ -1,8 +1,8 @@
 # THIS MAKEFILE IS ONLY INTENDED FOR OPENBENCH
 # BUILD WITH CMAKE PER THE INSTRUCTIONS IN THE README
 
-VERSION := $(file < version.txt)
-EVALFILE = src/eval/random_header.nnue
+VERSION := 4
+EVALFILE = src/eval/atomic-01.nnue
 
 ifndef EXE
     EXE = stormphrax-$(VERSION)
