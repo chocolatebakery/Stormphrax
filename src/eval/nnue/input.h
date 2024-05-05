@@ -31,6 +31,7 @@
 #include "../../position/boards.h"
 #include "io.h"
 #include "features.h"
+#include "../../util/static_vector.h"
 
 namespace stormphrax::eval::nnue
 {
@@ -88,12 +89,12 @@ namespace stormphrax::eval::nnue
 
 		//Specifically for atomic, Removal of pieces in captures
 		inline auto subFrom(Accumulator<Ft> &src, const Ft &featureTransformer,
-			Color c, u32 suby)
+			Color c, StaticVector<u32,12> suby)
 		{
-			assert(suby < InputCount);
+			assert(suby[0] < InputCount);
 
 			subSub(src.forColor(c), forColor(c), featureTransformer.weights,
-				suby * OutputCount);
+				suby);
 		}
 
 		inline auto subSubAddFrom(Accumulator<Ft> &src, const Ft &featureTransformer,
@@ -162,14 +163,21 @@ namespace stormphrax::eval::nnue
 
 		//Removal of pieces Only for atomic
 		static inline auto subSub(std::span<Type, OutputCount> src, std::span<Type, OutputCount> dst,
-			std::span<const Type, WeightCount> delta, u32 subOffset) -> void
+			std::span<const Type, WeightCount> delta, StaticVector<u32,12> sub) -> void
 		{
-			assert(subOffset + OutputCount <= delta.size());
+			assert(sub[0]*OutputCount + OutputCount <= delta.size());
 
 			for (u32 i = 0; i < OutputCount; ++i)
 			{
-				dst[i] = src[i]
-					- delta[subOffset + i];
+				dst[i] = src[i];
+				for (u32 j = 0;j < 12; j++) {
+					if (sub[j] == NULL) {
+						continue;
+					}
+					else {
+						dst[i] -= delta[sub[j]*OutputCount + i];
+					}
+				}
 			}
 		}
 

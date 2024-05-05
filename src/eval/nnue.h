@@ -142,11 +142,18 @@ namespace stormphrax::eval
 				}
 				//Think of a solution to atomic (Multiple captures) addcount=0 subcount > 1
 				if (addCount == 0 && subCount > 1) {
+					StaticVector<u32, 12> subArray = {};
 					for (int i=0; i < subCount;i++) {
 						auto [subPiece, subSquare] = updates.sub[i];
-						auto sub = featureIndex(c, subPiece, subSquare, king);
-						next->subFrom(*m_curr, g_network.featureTransformer(), c, sub);
+						if (subPiece == Piece::None) {
+							subArray.push(NULL);
+						}
+						else {
+							auto sub = featureIndex(c, subPiece, subSquare, king);
+							subArray.push(sub);
+						}
 					}
+					next->subFrom(*m_curr, g_network.featureTransformer(), c, subArray);
 				}
 				if (addCount == 1 && subCount == 1) // regular non-capture
 				{
