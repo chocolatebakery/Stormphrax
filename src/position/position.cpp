@@ -1111,7 +1111,15 @@ namespace stormphrax
 			auto theirQueens = bbs.queens(them) & after_boom;
 			auto theirBishops = bbs.bishops(them) & after_boom;
 			auto theirRooks = bbs.rooks(them) & after_boom;
+			
+			const auto theirs = bbs.forColor(them);
+			const auto ours = bbs.forColor(us);
+			auto their_king_radius = (attacks::getKingAttacks(theirKing.lowestSquare())) & theirs;
+			auto our_king_radius = (attacks::getKingAttacks(ourKing.lowestSquare())) & ours;
 
+			if ((Bitboard::fromSquare(dst) & their_king_radius) && (!(Bitboard::fromSquare(dst) & our_king_radius))) {
+					return true;
+			}
 			if (!(attacks::getKingAttacks(king) & theirKing)) {
 			if (!((attacks::getBishopAttacks(king, after_boom) & (theirQueens | theirBishops)).empty()
 				&& (attacks::getRookAttacks  (king, after_boom) & (theirQueens | theirRooks)).empty())) {

@@ -85,7 +85,22 @@ namespace stormphrax::see
 			return -ScoreMate;
 		}
 
-		auto score = value(nextVictim) + value(boards.pieceAt(s));
+		auto score = 0;
+
+		if (pieceColor(nextVictim) == us) {
+			score -= value(nextVictim);
+		}
+		else {
+			score += value(nextVictim);
+		}
+
+		if (pieceColor(boards.pieceAt(s)) == us) {
+			score -= value(boards.pieceAt(s));
+		}
+		else {
+			score += value(boards.pieceAt(s));
+		}
+		//auto score = value(nextVictim) + value(boards.pieceAt(s));
 
 		while (boom) {
 			auto boom_sq = static_cast<Square>(util::ctz(boom));
