@@ -1072,6 +1072,10 @@ namespace stormphrax
 				return false; //Can't explode our own king
 			}
 
+			if (boom & theirKing) {
+				return true; //can explode their King, regardless if in check or not.
+			}
+
 			/*if (!connected_kings(move) && (Bitboard::fromSquare(checker) & after_boom)) {
 				return false;
 			}*/
@@ -1081,7 +1085,6 @@ namespace stormphrax
 				}
 				const auto ours = bbs.forColor(us);
 				const auto theirs = bbs.forColor(them);
-				auto theirKing = state.boards.bbs().kings(them);
 				auto boom_radius = (attacks::getKingAttacks(checker)) & theirs;
 				if (pieceType(state.boards.pieceAt(checker)) == PieceType::Pawn) {
 					boom_radius = Bitboard{};
@@ -1133,8 +1136,10 @@ namespace stormphrax
 		if (move.type() == MoveType::Castling)
 		{
 			const auto kingDst = toSquare(move.srcRank(), move.srcFile() < move.dstFile() ? 6 : 2);
-			return !state.threats[kingDst] && !(g_opts.chess960 && state.pinned[dst]);
+			return !connected_kings(move) && !state.threats[kingDst] && !(g_opts.chess960 && state.pinned[dst]);
 		}
+
+		//TODO: Fix En-passant, it's not a big deal right now, because rarely we get these positions in atomic
 		else if (move.type() == MoveType::EnPassant)
 		{
 			auto rank = squareRank(dst);

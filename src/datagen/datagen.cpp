@@ -103,21 +103,38 @@ namespace stormphrax::datagen
 				m_hardNodeLimit = nodes;
 			}
 
+			inline auto setDepthLimit(i32 depth)
+			{
+				m_custDepthLimit = depth;
+			}
+
+			
+			inline auto setDepthMaxLimit(i32 depth)
+			{
+				m_custDepthMaxLimit = depth;
+			}
+
 		private:
 			u32 m_threadId;
 			usize m_softNodeLimit{};
 			usize m_hardNodeLimit{};
+			i32 m_custDepthLimit{};
+			i32 m_custDepthMaxLimit{};
 		};
 
-		constexpr usize VerificationHardNodeLimit = 25165814; //Halve it for atomic
+		constexpr usize VerificationHardNodeLimit = 122000; //Reduce drastically to speed up games
 
 		constexpr usize DatagenSoftNodeLimit = 2500;
-		constexpr usize DatagenHardNodeLimit = 4194304; //Halve it for atomic
+		constexpr usize DatagenHardNodeLimit = 61000; //Reduce drastically to speed up games
+
 
 		constexpr Score VerificationScoreLimit = 1000;
 
-		constexpr Score WinAdjMinScore = 2500; //Revert adjudication
+		constexpr Score WinAdjMinScore = 3000;
 		constexpr Score DrawAdjMaxScore = 10;
+
+		constexpr u16 depthLimit = 5;
+		constexpr u16 depthMaxLimit = 6;
 
 		constexpr u32 WinAdjMaxPlies = 5;
 		constexpr u32 DrawAdjMaxPlies = 10;
@@ -214,6 +231,8 @@ namespace stormphrax::datagen
 				thread->maxDepth = 6; //Max depth 6
 				limiter.setSoftNodeLimit(std::numeric_limits<usize>::max());
 				limiter.setHardNodeLimit(VerificationHardNodeLimit);
+				limiter.setDepthLimit(8);
+				limiter.setDepthMaxLimit(12);
 
 				const auto [firstScore, normFirstScore] = searcher.runDatagenSearch(*thread);
 

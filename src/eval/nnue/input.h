@@ -89,12 +89,12 @@ namespace stormphrax::eval::nnue
 
 		//Specifically for atomic, Removal of pieces in captures
 		inline auto subFrom(Accumulator<Ft> &src, const Ft &featureTransformer,
-			Color c, StaticVector<u32,12> suby)
+			Color c, StaticVector<u32,12> suby, usize vecSubCount)
 		{
 			assert(suby[0] < InputCount);
 
 			subSub(src.forColor(c), forColor(c), featureTransformer.weights,
-				suby);
+				suby, vecSubCount);
 		}
 
 		inline auto subSubAddFrom(Accumulator<Ft> &src, const Ft &featureTransformer,
@@ -163,19 +163,20 @@ namespace stormphrax::eval::nnue
 
 		//Removal of pieces Only for atomic
 		static inline auto subSub(std::span<Type, OutputCount> src, std::span<Type, OutputCount> dst,
-			std::span<const Type, WeightCount> delta, StaticVector<u32,12> sub) -> void
+			std::span<const Type, WeightCount> delta, StaticVector<u32,12> sub, usize vecSubCount) -> void
 		{
 			assert(sub[0]*OutputCount + OutputCount <= delta.size());
 
 			for (u32 i = 0; i < OutputCount; ++i)
 			{
 				dst[i] = src[i];
-				for (u32 j = 0;j < 12; j++) {
-					if (sub[j] == NULL) {
-						continue;
+				for (usize j = 0;j < vecSubCount; j++) {
+					u32 null = 0;
+					if (sub[j] != null) {
+						dst[i] -= delta[sub[j]*OutputCount + i];
 					}
 					else {
-						dst[i] -= delta[sub[j]*OutputCount + i];
+						continue;
 					}
 				}
 			}

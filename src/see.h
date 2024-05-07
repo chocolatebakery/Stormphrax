@@ -71,17 +71,13 @@ namespace stormphrax::see
 	inline auto gain(const PositionBoards &boards, Move move, Piece nextVictim, Square s) {
 		const auto &bbs = boards.bbs();
 		auto from = move.src();
-		auto us = pieceColor(boards.pieceAt(move.src()));
-
+		auto us = pieceColor(boards.pieceAt(move.src()));	
 		auto boom = (attacks::getKingAttacks(move.dst()) & (bbs.occupancy() ^ bbs.pawns())) - Bitboard::fromSquare(move.src());
-		if (s != move.src()) {
-			boom &= ~(Bitboard::fromSquare(s));
-		}
 
 		if (boom & bbs.kings(oppColor(us))) {
 			return ScoreMate;
 		}
-		if (s != move.src() && (boom & bbs.kings(us))) {
+		if ((boom & bbs.kings(us))) {
 			return -ScoreMate;
 		}
 
@@ -94,13 +90,12 @@ namespace stormphrax::see
 			score += value(nextVictim);
 		}
 
-		if (pieceColor(boards.pieceAt(s)) == us) {
-			score -= value(boards.pieceAt(s));
+		if (pieceColor(boards.pieceAt(move.dst())) == us) {
+			score -= value(boards.pieceAt(move.dst()));
 		}
 		else {
-			score += value(boards.pieceAt(s));
+			score += value(boards.pieceAt(move.dst()));
 		}
-		//auto score = value(nextVictim) + value(boards.pieceAt(s));
 
 		while (boom) {
 			auto boom_sq = static_cast<Square>(util::ctz(boom));
@@ -115,6 +110,67 @@ namespace stormphrax::see
 
 		return score;
 	}
+
+	inline auto gain_atomic(const Position &pos, Move move) {
+		
+		const auto &boards = pos.boards();
+		const auto &bbs = boards.bbs();
+
+		auto victim = boards.pieceAt(move.src());
+		auto stm = pieceColor(victim);
+		auto stmKing = bbs.occupancy(stm) & bbs.forPiece(PieceType::King);
+		auto boom = (attacks::getKingAttacks(move.dst()) & (bbs.occupancy() ^ bbs.pawns()) | (Bitboard::fromSquare(move.dst()) | Bitboard::fromSquare(move.src())));
+
+		auto result = 0;
+		if (boards.pieceAt(move.dst()) == Piece::None) {
+			auto occupied = bbs.occupancy() ^ ((Bitboard::fromSquare(move.src())) | (Bitboard::fromSquare(move.dst())));
+			auto attackers = pos.allAttackersTo(move.dst(), occupied) & bbs.occupancy(oppColor(stm));
+      		auto minAttacker = ScoreMaxMate;
+
+			while (attackers) {
+				auto sq = static_cast<Square>(util::ctz(attackers));
+				attackers &= attackers - 1;
+				if (pieceType((boards.pieceAt(sq))) != PieceType::King) {
+					minAttacker = std::min(minAttacker, boom & Bitboard::fromSquare(sq) ? 0 : value(boards.pieceAt(sq)));
+				}
+
+				if (minAttacker == ScoreMaxMate) {
+					return 0;
+				}
+				result += minAttacker; 
+			}
+		}
+
+		if (boards.pieceAt(move.dst()) != Piece::None)
+		{
+  		/*while (boom)
+  		{
+			auto boom_sq = static_cast<Square>(util::ctz(boom));
+			boom &= boom - 1;
+      		if (pieceType(boards.pieceAt(boom_sq)) == PieceType::King) {
+					if (pieceColor(boards.pieceAt(boom_sq)) == stm) {
+						return -ScoreMate;
+					}
+					else if (pieceColor(boards.pieceAt(boom_sq)) == oppColor(stm)) {
+						return ScoreMate;
+					}
+			if (pieceColor(boards.pieceAt(boom_sq)) == stm) {
+				result -= value(boards.pieceAt(boom_sq));
+			}
+			else {
+				result += value(boards.pieceAt(boom_sq));
+			}
+ 		 }
+		}*/
+			result += gain(boards,move,victim,move.dst());
+		}
+
+		if (boards.pieceAt(move.dst()) != Piece::None) {
+			return (result - 1);
+		}
+		return std::min(result,0);
+	}
+	
 
 	inline auto gain_move(const Position &pos, Move move) {
 		const auto &boards = pos.boards();
@@ -141,35 +197,11 @@ namespace stormphrax::see
 
 	// Adapted from MV-SF https://github.com/ddugovic/Stockfish/blob/eb4c78813370ebaea84724aed9f0b59d5ff3e2f2/src/position.cpp#L2235
 	// All credits to https://github.com/ddugovic and https://github.com/ianfab/ and all the Multivariant-Stockfish contributors
+	// Also adapted from https://github.com/fairy-stockfish/Fairy-Stockfish/blob/50adcffd957aaa2b4729409518549fc3107b9c33/src/position.cpp#L2367
+	// All credits to https://github.com/ianfab/
 	// For the code
+
 	inline auto see(const Position &pos, Move move, Score threshold = 0)
 	{
-		const auto &boards = pos.boards();
-		const auto &bbs = boards.bbs();
-
-		const auto color = pos.toMove();
-
-		auto us = oppColor(color);
-		auto victim = boards.pieceAt(move.src());
-		auto stm = pieceColor(victim);
-
-		if (boards.pieceAt(move.dst()) != Piece::None) {
-			return (gain(boards, move, victim, move.dst()) >= threshold + 1);
-		}
-		if (threshold > 0) {
-			return false;
-		}
-
-		auto occupied = bbs.occupancy() ^ Bitboard::fromSquare(move.src());
-		auto attackers = pos.allAttackersTo(move.dst(), occupied) & occupied & bbs.forColor(oppColor(stm)) & ~(bbs.forPiece(PieceType::King));
-
-		while(attackers) {
-			auto sq = static_cast<Square>(util::ctz(attackers));
-			attackers &= attackers - 1;
-			if (gain(boards,move,victim,sq) < threshold) {
-				return false;
-			}
-		}
-		return true;
+		return gain_atomic(pos,move) >= threshold;
 	}
-}
