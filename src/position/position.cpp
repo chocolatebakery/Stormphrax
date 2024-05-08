@@ -1057,7 +1057,7 @@ namespace stormphrax
 		}
 
 		//handle captures
-		if (state.boards.pieceAt(dst) != Piece::None) {
+		if ((state.boards.pieceAt(dst) != Piece::None) && (move.type() != MoveType::Castling)) {
 
 			auto boom = attacks::getKingAttacks(dst) & (bbs.occupancy() ^ bbs.pawns());
 			//King can't capture
@@ -1133,10 +1133,11 @@ namespace stormphrax
 
 		}
 
+		//Try to fix castling rules in the future with connected kings and checks, etc
 		if (move.type() == MoveType::Castling)
 		{
 			const auto kingDst = toSquare(move.srcRank(), move.srcFile() < move.dstFile() ? 6 : 2);
-			return !connected_kings(move) && !state.threats[kingDst] && !(g_opts.chess960 && state.pinned[dst]);
+			return !connected_kings(move) && !isCheck() && !state.threats[kingDst] && !(g_opts.chess960 && state.pinned[dst]);
 		}
 
 		else if (move.type() == MoveType::EnPassant)
