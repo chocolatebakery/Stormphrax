@@ -1139,7 +1139,6 @@ namespace stormphrax
 			return !connected_kings(move) && !state.threats[kingDst] && !(g_opts.chess960 && state.pinned[dst]);
 		}
 
-		//TODO: Fix En-passant, it's not a big deal right now, because rarely we get these positions in atomic
 		else if (move.type() == MoveType::EnPassant)
 		{
 			auto rank = squareRank(dst);
@@ -1149,15 +1148,31 @@ namespace stormphrax
 
 			const auto captureSquare = toSquare(rank, file);
 
-			const auto postEpOcc = bbs.occupancy()
-				^ Bitboard::fromSquare(src)
-				^ Bitboard::fromSquare(dst)
-				^ Bitboard::fromSquare(captureSquare);
+			auto boom = attacks::getKingAttacks(dst) & (bbs.occupancy() ^ bbs.pawns()); 
+			auto after_boom = bbs.occupancy() ^ (boom | Bitboard::fromSquare(src) | Bitboard::fromSquare(captureSquare)); //no dst, src and pawn captured
 
-			const auto theirQueens = bbs.queens(them);
+			const auto ours = bbs.forColor(us);
+			const auto theirs = bbs.forColor(them);
 
-			return (attacks::getBishopAttacks(king, postEpOcc) & (theirQueens | bbs.bishops(them))).empty()
-				&& (attacks::getRookAttacks  (king, postEpOcc) & (theirQueens | bbs.  rooks(them))).empty();
+			const auto theirQueens = bbs.queens(them) & after_boom;
+			const auto theirBishops = bbs.bishops(them) & after_boom;
+			const auto theirRooks = bbs.rooks(them) & after_boom;
+
+			auto their_king_radius = (attacks::getKingAttacks(theirKing.lowestSquare())) & theirs;
+			auto our_king_radius = (attacks::getKingAttacks(ourKing.lowestSquare())) & ours;
+
+			if (boom & ourKing) {
+				return false;
+			} // Can't explode our own king
+			if (boom & theirKing) {
+				return true;
+			} //Can explode their king
+			if (!(attacks::getKingAttacks(king) & theirKing)) {
+			if (!((attacks::getBishopAttacks(king, after_boom) & (theirQueens | theirBishops)).empty()
+				&& (attacks::getRookAttacks  (king, after_boom) & (theirQueens | theirRooks)).empty())) {
+					return false;
+				}
+			}
 		}
 
 		const auto moving = state.boards.pieceAt(src);
