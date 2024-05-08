@@ -119,7 +119,7 @@ namespace stormphrax::see
 		auto victim = boards.pieceAt(move.src());
 		auto stm = pieceColor(victim);
 		auto stmKing = bbs.occupancy(stm) & bbs.forPiece(PieceType::King);
-		auto boom = (attacks::getKingAttacks(move.dst()) & (bbs.occupancy() ^ bbs.pawns()) | (Bitboard::fromSquare(move.dst()) | Bitboard::fromSquare(move.src())));
+		auto boom = ((attacks::getKingAttacks(move.dst()) & (bbs.occupancy() ^ bbs.pawns()) | (Bitboard::fromSquare(move.dst()) | Bitboard::fromSquare(move.src()))) & (bbs.forColor(Color::White) | bbs.forColor(Color::Black)));
 
 		auto result = 0;
 		if (boards.pieceAt(move.dst()) == Piece::None) {
@@ -139,29 +139,33 @@ namespace stormphrax::see
 				}
 				result += minAttacker; 
 			}
-		}
 
-		if (boards.pieceAt(move.dst()) != Piece::None)
-		{
-  		/*while (boom)
+		while (boom)
   		{
 			auto boom_sq = static_cast<Square>(util::ctz(boom));
 			boom &= boom - 1;
       		if (pieceType(boards.pieceAt(boom_sq)) == PieceType::King) {
+
 					if (pieceColor(boards.pieceAt(boom_sq)) == stm) {
 						return -ScoreMate;
 					}
 					else if (pieceColor(boards.pieceAt(boom_sq)) == oppColor(stm)) {
 						return ScoreMate;
 					}
-			if (pieceColor(boards.pieceAt(boom_sq)) == stm) {
+
+			}
+			else if (pieceColor(boards.pieceAt(boom_sq)) == stm) {
 				result -= value(boards.pieceAt(boom_sq));
 			}
 			else {
 				result += value(boards.pieceAt(boom_sq));
 			}
  		 }
-		}*/
+
+		}
+
+		if (boards.pieceAt(move.dst()) != Piece::None)
+		{
 			result += gain(boards,move,victim,move.dst());
 		}
 
@@ -205,3 +209,4 @@ namespace stormphrax::see
 	{
 		return gain_atomic(pos,move) >= threshold;
 	}
+}
