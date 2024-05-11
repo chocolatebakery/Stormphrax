@@ -109,14 +109,14 @@ namespace stormphrax::datagen
 			usize m_hardNodeLimit{};
 		};
 
-		constexpr usize VerificationHardNodeLimit = 25165814;
+		constexpr usize VerificationHardNodeLimit = 122000;
 
 		constexpr usize DatagenSoftNodeLimit = 5000;
-		constexpr usize DatagenHardNodeLimit = 8388608;
+		constexpr usize DatagenHardNodeLimit = 61000;
 
 		constexpr Score VerificationScoreLimit = 1000;
 
-		constexpr Score WinAdjMinScore = 2500;
+		constexpr Score WinAdjMinScore = 10000;
 		constexpr Score DrawAdjMaxScore = 10;
 
 		constexpr u32 WinAdjMaxPlies = 5;
