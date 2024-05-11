@@ -1,11 +1,11 @@
 # THIS MAKEFILE IS ONLY INTENDED FOR OPENBENCH
 # BUILD WITH CMAKE PER THE INSTRUCTIONS IN THE README
 
-VERSION := $(file < version.txt)
+VERSION := 1
 EVALFILE = src/eval/random_header.nnue
 
 ifndef EXE
-    EXE = stormphrax-$(VERSION)
+    EXE = stormphrax-rifle-$(VERSION)
     NO_EXE_SET = true
 endif
 

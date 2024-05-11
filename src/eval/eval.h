@@ -25,6 +25,7 @@
 #include "nnue.h"
 #include "../position/position.h"
 #include "../core.h"
+#include "../see.h"
 
 namespace stormphrax::eval
 {
@@ -46,10 +47,19 @@ namespace stormphrax::eval
 		return std::clamp(eval, -ScoreWin + 1, ScoreWin - 1);
 	}
 
+	inline auto simple_eval(const Position& pos) {
+    return (see::value(Piece::WhitePawn) * pos.bbs().forPiece(Piece::WhitePawn).popcount()) - (see::value(Piece::BlackPawn) * pos.bbs().forPiece(Piece::BlackPawn).popcount())
+         + (see::value(Piece::WhiteQueen) * pos.bbs().forPiece(Piece::WhiteQueen).popcount()) - (see::value(Piece::BlackQueen) * pos.bbs().forPiece(Piece::BlackQueen).popcount())
+		 + (see::value(Piece::WhiteKnight) * pos.bbs().forPiece(Piece::WhiteKnight).popcount()) - (see::value(Piece::BlackKnight) * pos.bbs().forPiece(Piece::BlackKnight).popcount())
+		 + (see::value(Piece::WhiteRook) * pos.bbs().forPiece(Piece::WhiteRook).popcount()) - (see::value(Piece::BlackRook) * pos.bbs().forPiece(Piece::BlackRook).popcount())
+		 + (see::value(Piece::WhiteBishop) * pos.bbs().forPiece(Piece::WhiteBishop).popcount()) - (see::value(Piece::BlackBishop) * pos.bbs().forPiece(Piece::BlackBishop).popcount())
+		 ;
+	}
 	template <bool Scale = true>
 	inline auto staticEval(const Position &pos, const NnueState &nnueState, const Contempt &contempt = {})
 	{
 		const auto nnueEval = nnueState.evaluate(pos.bbs(), pos.toMove());
+		//return simple_eval(pos);
 		return adjustEval<Scale>(pos, contempt, nnueEval);
 	}
 
@@ -57,6 +67,7 @@ namespace stormphrax::eval
 	inline auto staticEvalOnce(const Position &pos, const Contempt &contempt = {})
 	{
 		const auto nnueEval = NnueState::evaluateOnce(pos.bbs(), pos.blackKing(), pos.whiteKing(), pos.toMove());
+		//return simple_eval(pos);
 		return adjustEval<Scale>(pos, contempt, nnueEval);
 	}
 }

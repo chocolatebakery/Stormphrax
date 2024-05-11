@@ -367,6 +367,7 @@ namespace stormphrax::search
 				else
 				{
 					std::cout << "info string no legal moves" << std::endl;
+					std::cout << "bestmove (none)" << std::endl;
 					break;
 				}
 			}
@@ -383,7 +384,11 @@ namespace stormphrax::search
 					report(thread, pv, depthCompleted, util::g_timer.time() - startTime, score, -ScoreInf, ScoreInf);
 				std::cout << "bestmove " << uci::moveToString(pv.moves[0]) << std::endl;
 			}
-			else std::cout << "info string no legal moves" << std::endl;
+			else {
+				std::cout << "info string no legal moves" << std::endl;
+				std::cout << "bestmove (none)" << std::endl;
+			}
+
 		}
 
 		if (mainSearchThread)

@@ -141,6 +141,14 @@ namespace stormphrax::eval
 					continue;
 				}
 
+				if (addCount == 0 && subCount == 1) {
+					
+					const auto [subPiece, subSquare] = updates.sub[0];
+					
+					auto sub = featureIndex(c, subPiece, subSquare, king);
+					next->subFrom(*m_curr, g_network.featureTransformer(), c, sub);
+				}
+
 				if (addCount == 1 && subCount == 1) // regular non-capture
 				{
 					const auto [subPiece, subSquare] = updates.sub[0];

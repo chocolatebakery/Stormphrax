@@ -1024,6 +1024,24 @@ namespace stormphrax
 
 		const auto king = state.king(us);
 
+
+		if ((state.boards.pieceAt(dst) != Piece::None) && (move.type() != MoveType::Castling)) {
+				const auto afterCapture = (bbs.occupancy() ^ Bitboard::fromSquare(dst));
+				const auto theirQueens = bbs.queens(them) & afterCapture;
+				const auto theirRooks = bbs.rooks(them) & afterCapture;
+				const auto theirBishops = bbs.bishops(them) & afterCapture;
+				const auto theirPawns = bbs.pawns(them) & afterCapture;
+				const auto theirKnights = bbs.knights(them) & afterCapture;
+				//const auto theirPieces = bbs.forColor(them) & afterCapture;
+			
+				return ((attacks::getBishopAttacks(king, afterCapture) & (theirQueens | theirBishops)).empty()
+					&& (attacks::getRookAttacks(king, afterCapture) & (theirQueens | theirRooks)).empty()
+					&& (attacks::getKnightAttacks(king) & theirKnights).empty()
+					&& (attacks::getPawnAttacks(king,us) & theirPawns).empty());
+				/*else if  (((attackersTo(king,them) & theirPieces).empty())) {
+					return true;
+				}*/
+		}
 		if (move.type() == MoveType::Castling)
 		{
 			const auto kingDst = toSquare(move.srcRank(), move.srcFile() < move.dstFile() ? 6 : 2);
@@ -1039,8 +1057,6 @@ namespace stormphrax
 			const auto captureSquare = toSquare(rank, file);
 
 			const auto postEpOcc = bbs.occupancy()
-				^ Bitboard::fromSquare(src)
-				^ Bitboard::fromSquare(dst)
 				^ Bitboard::fromSquare(captureSquare);
 
 			const auto theirQueens = bbs.queens(them);
@@ -1053,12 +1069,13 @@ namespace stormphrax
 
 		if (pieceType(moving) == PieceType::King)
 		{
-			const auto kinglessOcc = bbs.occupancy() ^ bbs.kings(us);
-			const auto theirQueens = bbs.queens(them);
 
-			return !state.threats[move.dst()]
-				&& (attacks::getBishopAttacks(dst, kinglessOcc) & (theirQueens | bbs.bishops(them))).empty()
-				&& (attacks::getRookAttacks  (dst, kinglessOcc) & (theirQueens | bbs.  rooks(them))).empty();
+				const auto kinglessOcc = bbs.occupancy() ^ bbs.kings(us);
+				const auto theirQueens = bbs.queens(them);
+				
+				return !state.threats[move.dst()]
+					&& (attacks::getBishopAttacks(dst, kinglessOcc) & (theirQueens | bbs.bishops(them))).empty()
+					&& (attacks::getRookAttacks  (dst, kinglessOcc) & (theirQueens | bbs.  rooks(them))).empty();
 		}
 
 		// multiple checks can only be evaded with a king move
@@ -1070,6 +1087,7 @@ namespace stormphrax
 			return true;
 
 		const auto checker = state.checkers.lowestSquare();
+
 		return (rayBetween(king, checker) | Bitboard::fromSquare(checker))[dst];
 	}
 
@@ -1290,6 +1308,8 @@ namespace stormphrax
 			}
 		}
 
+		else {
+
 		state.boards.movePiece(src, dst, piece);
 
 		if (pieceType(piece) == PieceType::King)
@@ -1309,8 +1329,6 @@ namespace stormphrax
 		{
 			nnueUpdates.pushSubAdd(piece, src, dst);
 
-			if (captured != Piece::None)
-				nnueUpdates.pushSub(captured, dst);
 		}
 
 		if constexpr (UpdateKey)
@@ -1319,6 +1337,7 @@ namespace stormphrax
 			state.key ^= key;
 		}
 
+		}
 		return captured;
 	}
 
@@ -1354,7 +1373,7 @@ namespace stormphrax
 			if constexpr (UpdateKey)
 				state.key ^= keys::pieceSquare(captured, dst);
 		}
-
+		else {
 		state.boards.moveAndChangePiece(src, dst, pawn, promo);
 
 		if constexpr(UpdateNnue || UpdateKey)
@@ -1370,7 +1389,7 @@ namespace stormphrax
 			if constexpr (UpdateKey)
 				state.key ^= keys::pieceSquare(pawn, src) ^ keys::pieceSquare(coloredPromo, dst);
 		}
-
+		}
 		return captured;
 	}
 
@@ -1432,7 +1451,7 @@ namespace stormphrax
 
 		const auto color = pieceColor(pawn);
 
-		state.boards.movePiece(src, dst, pawn);
+		/*state.boards.movePiece(src, dst, pawn);
 
 		if constexpr (UpdateNnue)
 			nnueUpdates.pushSubAdd(pawn, src, dst);
@@ -1441,7 +1460,7 @@ namespace stormphrax
 		{
 			const auto key = keys::pieceSquare(pawn, src) ^ keys::pieceSquare(pawn, dst);
 			state.key ^= key;
-		}
+		}*/
 
 		auto rank = squareRank(dst);
 		const auto file = squareFile(dst);
