@@ -1072,7 +1072,13 @@ namespace stormphrax::search
 			if (!pos.isLegal(move.move))
 				continue;
 			//taken from Multi-Variant too
-			//auto futilityaltered = futility + see::gain_move(pos, move.move);
+			/*auto futilityaltered = futility + see::gain_atomic(pos, move.move);
+	
+			if (!pos.isCheck() && (futilityaltered <= alpha)) {
+					bestScore = std::max(bestScore, futilityaltered);
+					continue;
+				}
+			*/
 			if (!pos.isCheck()
 				&& futility <= alpha
 				&& !see::see(pos, move.move, 1))

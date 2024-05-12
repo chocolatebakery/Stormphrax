@@ -1047,10 +1047,11 @@ namespace stormphrax
 		const auto src = move.src();
 		const auto dst = move.dst();
 
-		const auto king = state.king(us);
-		auto theirKing = state.boards.bbs().kings(them);
+		const auto king = state.king(us); //Our King Square
+		auto theirKing = state.boards.bbs().kings(them); //Location of their king
 		auto ourKing = state.boards.bbs().kings(us); //Location of our King
 		const auto checker = state.checkers.lowestSquare(); // location of checkers
+		const auto theirs = bbs.forColor(them);
 
 		if (isVariantOver()) {
 			return false;
@@ -1076,26 +1077,13 @@ namespace stormphrax
 				return true; //can explode their King, regardless if in check or not.
 			}
 
-			/*if (!connected_kings(move) && (Bitboard::fromSquare(checker) & after_boom)) {
-				return false;
-			}*/
 			if (isCheck()) {
 				if (connected_kings(move)) {
 					return true;
 				}
-				const auto ours = bbs.forColor(us);
-				const auto theirs = bbs.forColor(them);
 				auto boom_radius = (attacks::getKingAttacks(checker)) & theirs;
-				if (pieceType(state.boards.pieceAt(checker)) == PieceType::Pawn) {
-					boom_radius = Bitboard{};
-				}
-				auto their_king_radius = (attacks::getKingAttacks(theirKing.lowestSquare())) & theirs;
-				// Opposite Kings can be exploded during check.
-				if (Bitboard::fromSquare(dst) & their_king_radius) {
-					return true;
-				}
 				// Pieces giving check can be exploded during check.
-				if (Bitboard::fromSquare(dst) & boom_radius) {
+				if ((pieceType(state.boards.pieceAt(checker)) != PieceType::Pawn) && (Bitboard::fromSquare(dst) & boom_radius)) {
 					auto after_boom = bbs.occupancy() ^ ((boom | Bitboard::fromSquare(dst)) | Bitboard::fromSquare(src));
 					auto theirQueens = bbs.queens(them) & after_boom;
 					auto theirBishops = bbs.bishops(them) & after_boom;
@@ -1115,14 +1103,6 @@ namespace stormphrax
 			auto theirBishops = bbs.bishops(them) & after_boom;
 			auto theirRooks = bbs.rooks(them) & after_boom;
 			
-			const auto theirs = bbs.forColor(them);
-			const auto ours = bbs.forColor(us);
-			auto their_king_radius = (attacks::getKingAttacks(theirKing.lowestSquare())) & theirs;
-			auto our_king_radius = (attacks::getKingAttacks(ourKing.lowestSquare())) & ours;
-
-			if ((Bitboard::fromSquare(dst) & their_king_radius) && (!(Bitboard::fromSquare(dst) & our_king_radius))) {
-					return true;
-			}
 			if (!(attacks::getKingAttacks(king) & theirKing)) {
 			if (!((attacks::getBishopAttacks(king, after_boom) & (theirQueens | theirBishops)).empty()
 				&& (attacks::getRookAttacks  (king, after_boom) & (theirQueens | theirRooks)).empty())) {
@@ -1158,9 +1138,6 @@ namespace stormphrax
 			const auto theirQueens = bbs.queens(them) & after_boom;
 			const auto theirBishops = bbs.bishops(them) & after_boom;
 			const auto theirRooks = bbs.rooks(them) & after_boom;
-
-			auto their_king_radius = (attacks::getKingAttacks(theirKing.lowestSquare())) & theirs;
-			auto our_king_radius = (attacks::getKingAttacks(ourKing.lowestSquare())) & ours;
 
 			if (boom & ourKing) {
 				return false;
