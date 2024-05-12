@@ -124,7 +124,6 @@ namespace stormphrax::see
 		const auto square = move.dst();
 
 		auto occupancy = bbs.occupancy()
-			^ squareBit(move.src())
 			^ squareBit(square);
 
 		const auto queens = bbs.queens();
@@ -132,7 +131,7 @@ namespace stormphrax::see
 		const auto bishops = queens | bbs.bishops();
 		const auto rooks = queens | bbs.rooks();
 
-		auto attackers = pos.allAttackersTo(square, occupancy);
+		auto attackers = pos.allAttackersTo(move.src(), occupancy);
 
 		auto us = oppColor(color);
 
