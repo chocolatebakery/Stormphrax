@@ -1,7 +1,7 @@
 # THIS MAKEFILE IS ONLY INTENDED FOR OPENBENCH
 # BUILD WITH CMAKE PER THE INSTRUCTIONS IN THE README
 
-VERSION := 2_01
+VERSION := 02
 EVALFILE = src/eval/atomic-02.nnue
 
 ifndef EXE
@@ -46,7 +46,7 @@ ifeq ($(OS), Windows_NT)
     SUFFIX := .exe
     # for fathom
     CXXFLAGS += -D_CRT_SECURE_NO_WARNINGS
-    RM := del
+    RM := rm
 else
     DETECTED_OS := $(shell uname -s)
     SUFFIX :=

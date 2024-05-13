@@ -35,7 +35,7 @@ namespace stormphrax::see
 		constexpr Score Bishop = 450;
 		constexpr Score Rook = 650;
 		constexpr Score Queen = 1250;
-		constexpr Score King = ScoreMate;
+		constexpr Score King = 0;
 	}
 
 	constexpr auto Values = std::array {
@@ -72,7 +72,7 @@ namespace stormphrax::see
 		const auto &bbs = boards.bbs();
 		auto from = move.src();
 		auto us = pieceColor(boards.pieceAt(move.src()));	
-		auto boom = (attacks::getKingAttacks(move.dst()) & (bbs.occupancy() ^ bbs.pawns())) - Bitboard::fromSquare(move.src());
+		auto boom = ((attacks::getKingAttacks(move.dst()) & ~(bbs.pawns()) | (Bitboard::fromSquare(move.dst()) | Bitboard::fromSquare(move.src()))));
 
 		if (boom & bbs.kings(oppColor(us))) {
 			return ScoreMate;
@@ -83,7 +83,7 @@ namespace stormphrax::see
 
 		auto score = 0;
 
-		if (pieceColor(nextVictim) == us) {
+		/*if (pieceColor(nextVictim) == us) {
 			score -= value(nextVictim);
 		}
 		else {
@@ -95,7 +95,7 @@ namespace stormphrax::see
 		}
 		else {
 			score += value(boards.pieceAt(move.dst()));
-		}
+		}*/
 
 		while (boom) {
 			auto boom_sq = static_cast<Square>(util::ctz(boom));
@@ -119,12 +119,12 @@ namespace stormphrax::see
 		auto victim = boards.pieceAt(move.src());
 		auto stm = pieceColor(victim);
 		auto stmKing = bbs.occupancy(stm) & bbs.forPiece(PieceType::King);
-		auto boom = ((attacks::getKingAttacks(move.dst()) & (bbs.occupancy() ^ bbs.pawns()) | (Bitboard::fromSquare(move.dst()) | Bitboard::fromSquare(move.src()))) & (bbs.forColor(Color::White) | bbs.forColor(Color::Black)));
+		auto boom = ((attacks::getKingAttacks(move.dst()) & ~(bbs.pawns()) | (Bitboard::fromSquare(move.dst()) | Bitboard::fromSquare(move.src())) & bbs.occupancy()));
 
 		auto result = 0;
 		if (boards.pieceAt(move.dst()) == Piece::None) {
 			auto occupied = bbs.occupancy() ^ ((Bitboard::fromSquare(move.src())) | (Bitboard::fromSquare(move.dst())));
-			auto attackers = pos.allAttackersTo(move.dst(), occupied) & bbs.occupancy(oppColor(stm));
+			auto attackers = pos.attackersToPos(move.dst(), occupied, oppColor(stm));
       		auto minAttacker = ScoreMaxMate;
 
 			while (attackers) {

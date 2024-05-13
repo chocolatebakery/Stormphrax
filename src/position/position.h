@@ -265,6 +265,36 @@ namespace stormphrax
 
 			return attackers;
 		}
+		[[nodiscard]] inline auto attackersToPos(Square square, Bitboard occ, Color attacker) const
+		{
+			assert(square != Square::None);
+
+			const auto &bbs = this->bbs();
+
+			Bitboard attackers{};
+
+			//const auto occ = bbs.occupancy();
+
+			const auto queens = bbs.queens(attacker);
+
+			const auto rooks = queens | bbs.rooks(attacker);
+			attackers |= rooks & attacks::getRookAttacks(square, occ);
+
+			const auto bishops = queens | bbs.bishops(attacker);
+			attackers |= bishops & attacks::getBishopAttacks(square, occ);
+
+			const auto pawns = bbs.pawns(attacker);
+			attackers |= pawns & attacks::getPawnAttacks(square, oppColor(attacker));
+
+			const auto knights = bbs.knights(attacker);
+			attackers |= knights & attacks::getKnightAttacks(square);
+
+			const auto kings = bbs.kings(attacker);
+			attackers |= kings & attacks::getKingAttacks(square);
+			//Ignore King attacks
+
+			return attackers;
+		}
 
 		template <bool ThreatShortcut = true>
 		[[nodiscard]] static inline auto isAttacked(const BoardState &state,
