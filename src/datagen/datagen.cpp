@@ -116,7 +116,7 @@ namespace stormphrax::datagen
 
 		constexpr Score VerificationScoreLimit = 1000;
 
-		constexpr Score WinAdjMinScore = 10000;
+		constexpr Score WinAdjMinScore = 2500;
 		constexpr Score DrawAdjMaxScore = 10;
 
 		constexpr u32 WinAdjMaxPlies = 5;

@@ -46,7 +46,7 @@ ifeq ($(OS), Windows_NT)
     SUFFIX := .exe
     # for fathom
     CXXFLAGS += -D_CRT_SECURE_NO_WARNINGS
-    RM := del
+    RM := rm
 else
     DETECTED_OS := $(shell uname -s)
     SUFFIX :=
