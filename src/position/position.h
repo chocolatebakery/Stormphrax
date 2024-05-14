@@ -184,12 +184,14 @@ namespace stormphrax
 
 			auto key = state.key;
 
-			key ^= keys::pieceSquare(moving, move.src());
-			key ^= keys::pieceSquare(moving, move.dst());
-
-			if (captured != Piece::None)
+			if (captured == Piece::None) {
+				key ^= keys::pieceSquare(moving, move.src());
+				key ^= keys::pieceSquare(moving, move.dst());
+			}
+			else {
 				key ^= keys::pieceSquare(captured, move.dst());
-
+			}
+			
 			key ^= keys::color();
 
 			return key;

@@ -1,8 +1,8 @@
 # THIS MAKEFILE IS ONLY INTENDED FOR OPENBENCH
 # BUILD WITH CMAKE PER THE INSTRUCTIONS IN THE README
 
-VERSION := 1
-EVALFILE = src/eval/random_header.nnue
+VERSION := 1_01
+EVALFILE = src/eval/rifle-01.nnue
 
 ifndef EXE
     EXE = stormphrax-rifle-$(VERSION)
