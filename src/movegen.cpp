@@ -349,41 +349,10 @@ namespace stormphrax
 
 		auto pawnDstMask = kingDstMask | epMask | promos;
 
-		if (pos.isCheck())
-		{
-			if (pos.checkers().multiple())
-			{
-				auto their_king_radius = (attacks::getKingAttacks(pos.king(them))) & theirs;
-				generateSliders(noisy, pos, their_king_radius);
-				generatePawnsNoisy(noisy, pos, their_king_radius);
-				generateKnights(noisy, pos, their_king_radius);
-				return; //Only noisy moves allowed are if we can capture their king, when we're in check
-			}
-
-			dstMask = pos.checkers();
-
-			pawnDstMask = kingDstMask | (promos & rayBetween(pos.king(us), pos.checkers().lowestSquare()));
-
-			// pawn that just moved is the checker
-			if (!(pos.checkers() & epPawn).empty())
-				pawnDstMask |= epMask;
-
-			auto boom_radius = (attacks::getKingAttacks(pos.checkers().lowestSquare())) & theirs;
-			if (pieceType(pos.boards().pieceAt(pos.checkers().lowestSquare())) == PieceType::Pawn) {
-				boom_radius = Bitboard{};
-			}
-			auto their_king_radius = (attacks::getKingAttacks(pos.king(them))) & theirs;
-			dstMask |= boom_radius;
-			dstMask |= their_king_radius; // Can explode the checking piece or blow the opposite King while in check
-			pawnDstMask |= boom_radius;
-			pawnDstMask |= their_king_radius;
-		}
-
 		generateSliders(noisy, pos, dstMask);
 		generatePawnsNoisy(noisy, pos, pawnDstMask);
 		generateKnights(noisy, pos, dstMask);
-		//generateKings<false>(noisy, pos, kingDstMask);
-		//Kings cant capture in atomic, Delete Noisy movements from kings
+		generateKings<false>(noisy, pos, dstMask);
 	}
 
 	auto generateQuiet(ScoredMoveList &quiet, const Position &pos) -> void
@@ -402,20 +371,7 @@ namespace stormphrax
 		// for underpromotions
 		auto pawnDstMask = kingDstMask;
 
-		if (pos.isCheck())
-		{
-			if (pos.checkers().multiple())
-			{
-				generateKings<false>(quiet, pos, kingDstMask);
-				return;
-			}
-
-			pawnDstMask = dstMask = rayBetween(pos.king(us), pos.checkers().lowestSquare());
-
-			pawnDstMask |= pos.checkers() & boards::promotionRank(us);
-			
-		}
-		else pawnDstMask |= boards::promotionRank(us);
+		pawnDstMask |= boards::promotionRank(us);
 
 		generateSliders(quiet, pos, dstMask);
 		generatePawnsQuiet(quiet, pos, pawnDstMask, ours | theirs);
@@ -433,8 +389,6 @@ namespace stormphrax
 		const auto ours = bbs.forColor(us);
 		const auto theirs = bbs.forColor(them);
 
-		const auto atomicKingDstMask = ~(ours | theirs); //only quiet moves for King
-
 		const auto kingDstMask = ~bbs.forColor(pos.toMove());
 
 		auto dstMask = kingDstMask;
@@ -450,42 +404,11 @@ namespace stormphrax
 
 		auto pawnDstMask = kingDstMask;
 
-		if (pos.isCheck())
-		{
-			if (pos.checkers().multiple())
-			{
-				generateKings<false>(dst, pos, atomicKingDstMask);
-				auto their_king_radius = (attacks::getKingAttacks(pos.king(them))) & theirs;
-				generateSliders(dst, pos, their_king_radius);
-				generatePawnsNoisy(dst, pos, their_king_radius);
-				generateKnights(dst, pos, their_king_radius);
-				return; //Only kings can move during multiple checks OR explode the opposite king, Need to recheck this when i Have the patience
-			}
-			
-
-			pawnDstMask = dstMask = pos.checkers()
-				| rayBetween(pos.king(us), pos.checkers().lowestSquare());
-
-			if (!(pos.checkers() & epPawn).empty())
-				pawnDstMask |= epMask;
-			
-			auto boom_radius = (attacks::getKingAttacks(pos.checkers().lowestSquare())) & theirs;
-			auto their_king_radius = (attacks::getKingAttacks(pos.king(them))) & theirs;
-			dstMask |= boom_radius;
-			dstMask |= their_king_radius; // Can explode the checking piece or blow the opposite King while in check
-			pawnDstMask |= boom_radius;
-			pawnDstMask |= their_king_radius;
-			//generateSliders(dst, pos, boom_radius);
-			//generatePawnsNoisy(dst, pos, boom_radius);
-			//generateKnights(dst, pos, boom_radius);
-
-		}
 
 		generateSliders(dst, pos, dstMask);
 		generatePawnsNoisy(dst, pos, pawnDstMask);
 		generatePawnsQuiet(dst, pos, dstMask, bbs.occupancy());
 		generateKnights(dst, pos, dstMask);
-		generateKings<true>(dst, pos, atomicKingDstMask);
-		//only quiet king moves are generated
+		generateKings<true>(dst, pos, kingDstMask);
 	}
 }

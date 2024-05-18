@@ -97,6 +97,15 @@ namespace stormphrax::eval::nnue
 				suby, vecSubCount);
 		}
 
+		inline auto subKingCapture(Accumulator<Ft> &src, const Ft &featureTransformer,
+			Color c, StaticVector<u32,12> suby, usize vecSubCount, u32 add)
+		{
+			assert(suby[0] < InputCount);
+
+			subKingCap(src.forColor(c), forColor(c), featureTransformer.weights,
+				suby, vecSubCount, add * OutputCount);
+		}
+
 		inline auto subSubAddFrom(Accumulator<Ft> &src, const Ft &featureTransformer,
 			Color c, u32 sub0, u32 sub1, u32 add)
 		{
@@ -170,6 +179,24 @@ namespace stormphrax::eval::nnue
 			for (u32 i = 0; i < OutputCount; ++i)
 			{
 				dst[i] = src[i];
+				for (usize j = 0; j <= vecSubCount ; j++) {
+					u32 null = 0;
+					if (sub[j] != null) {
+						dst[i] -= delta[sub[j]*OutputCount + i];
+					}
+				}
+			}
+		}
+
+		static inline auto subKingCap(std::span<Type, OutputCount> src, std::span<Type, OutputCount> dst,
+			std::span<const Type, WeightCount> delta, StaticVector<u32,12> sub, usize vecSubCount, u32 addOffset) -> void
+		{
+			assert(sub[0]*OutputCount + OutputCount <= delta.size());
+			assert(addOffset + OutputCount <= delta.size());
+
+			for (u32 i = 0; i < OutputCount; ++i)
+			{
+				dst[i] = src[i] + delta[addOffset + i];
 				for (usize j = 0; j <= vecSubCount ; j++) {
 					u32 null = 0;
 					if (sub[j] != null) {

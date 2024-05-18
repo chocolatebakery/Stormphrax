@@ -166,17 +166,26 @@ namespace stormphrax::eval
 
 					next->subAddFrom(*m_curr, g_network.featureTransformer(), c, sub, add);
 				}
-				else if (addCount == 1 && subCount == 2) // any capture
+				else if (addCount == 1 && subCount > 1) // King Captures
 				{
-					const auto [subPiece0, subSquare0] = updates.sub[0];
-					const auto [subPiece1, subSquare1] = updates.sub[1];
+
+					StaticVector<u32, 12> subArray = {};
+					for (int i=0; i <= subCount ;i++) {
+						auto [subPiece, subSquare] = updates.sub[i];
+						if (pieceType(subPiece) == PieceType::Queen || pieceType(subPiece) == PieceType::Bishop || pieceType(subPiece) == PieceType::King || pieceType(subPiece) == PieceType::Knight || pieceType(subPiece) == PieceType::Pawn || pieceType(subPiece) == PieceType::Rook) {
+							auto sub = featureIndex(c, subPiece, subSquare, king);
+							subArray.push(sub);
+						}
+						else {
+							u32 null = 0;
+							subArray.push(null);
+						}
+					}
 					const auto [addPiece , addSquare ] = updates.add[0];
 
-					const auto sub0 = featureIndex(c, subPiece0, subSquare0, king);
-					const auto sub1 = featureIndex(c, subPiece1, subSquare1, king);
 					const auto add  = featureIndex(c, addPiece , addSquare , king);
 
-					next->subSubAddFrom(*m_curr, g_network.featureTransformer(), c, sub0, sub1, add);
+					next->subKingCapture(*m_curr, g_network.featureTransformer(), c, subArray, subCount, add);
 				}
 				else if (addCount == 2 && subCount == 2) // castling
 				{

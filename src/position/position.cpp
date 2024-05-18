@@ -872,33 +872,13 @@ namespace stormphrax
 		const auto dst = move.dst();
 		const auto dstPiece = state.boards.pieceAt(dst);
 
-		auto ourKing = state.boards.bbs().kings(us); //Location of our King
-		if (dstPiece != Piece::None) {
-			auto boom = attacks::getKingAttacks(dst);
-			if (boom & ourKing) {
-				return false; //Can't explode our own king
-			}
-		}
-
 		// we're capturing something
 		if (dstPiece != Piece::None
 			// we're capturing our own piece    and either not castling
 			&& ((pieceColor(dstPiece) == us && (type != MoveType::Castling
 					// or trying to castle with a non-rook
-					|| dstPiece != colorPiece(PieceType::Rook, us)))
-				// or trying to capture a king
-				|| pieceType(dstPiece) == PieceType::King))
+					|| dstPiece != colorPiece(PieceType::Rook, us)))))
 			return false;
-
-		// take advantage of evasion generation if in check
-		if (isCheck())
-		{
-			ScoredMoveList moves{};
-			generateAll(moves, *this);
-
-			return std::any_of(moves.begin(), moves.end(),
-				[move](const auto m) { return m.move == move; });
-		}
 
 		const auto srcPieceType = pieceType(srcPiece);
 		const auto them = oppColor(us);
@@ -906,8 +886,6 @@ namespace stormphrax
 
 		if (type == MoveType::Castling)
 		{
-			if (srcPieceType != PieceType::King || isCheck())
-				return false;
 
 			const auto homeRank = relativeRank(us, 0);
 
@@ -1047,137 +1025,20 @@ namespace stormphrax
 		const auto src = move.src();
 		const auto dst = move.dst();
 
-		const auto king = state.king(us); //Our King Square
-		auto theirKing = state.boards.bbs().kings(them); //Location of their king
-		auto ourKing = state.boards.bbs().kings(us); //Location of our King
-		const auto checker = state.checkers.lowestSquare(); // location of checkers
-		const auto theirs = bbs.forColor(them);
-
 		if (isVariantOver()) {
 			return false;
-		}
-
-		//handle captures
-		if ((state.boards.pieceAt(dst) != Piece::None) && (move.type() != MoveType::Castling)) {
-
-			auto boom = attacks::getKingAttacks(dst) & (bbs.occupancy() ^ bbs.pawns());
-			//King can't capture
-			if ((pieceType(state.boards.pieceAt(src)) == PieceType::King)) {
-				return false;
-			}
-			//King can't be captured directly
-			if (pieceType(state.boards.pieceAt(dst)) == PieceType::King) {
-				return false;
-			}
-			if (boom & ourKing) {
-				return false; //Can't explode our own king
-			}
-
-			if (boom & theirKing) {
-				return true; //can explode their King, regardless if in check or not.
-			}
-
-			if (isCheck()) {
-				if (connected_kings(move)) {
-					return true;
-				}
-				auto boom_radius = (attacks::getKingAttacks(checker)) & theirs;
-				// Pieces giving check can be exploded during check.
-				if ((pieceType(state.boards.pieceAt(checker)) != PieceType::Pawn) && (Bitboard::fromSquare(dst) & boom_radius)) {
-					auto after_boom = bbs.occupancy() ^ ((boom | Bitboard::fromSquare(dst)) | Bitboard::fromSquare(src));
-					auto theirQueens = bbs.queens(them) & after_boom;
-					auto theirBishops = bbs.bishops(them) & after_boom;
-					auto theirRooks = bbs.rooks(them) & after_boom;
-					
-					if (!((attacks::getBishopAttacks(king, after_boom) & (theirQueens | theirBishops)).empty()
-						&& (attacks::getRookAttacks  (king, after_boom) & (theirQueens | theirRooks)).empty())) {
-							return false;
-						}
-					else {
-					return true;
-					}
-				} //Can explode the opposite king or the piece checking
-			}
-			auto after_boom = bbs.occupancy() ^ ((boom | Bitboard::fromSquare(dst)) | Bitboard::fromSquare(src));
-			auto theirQueens = bbs.queens(them) & after_boom;
-			auto theirBishops = bbs.bishops(them) & after_boom;
-			auto theirRooks = bbs.rooks(them) & after_boom;
-			
-			if (!(attacks::getKingAttacks(king) & theirKing)) {
-			if (!((attacks::getBishopAttacks(king, after_boom) & (theirQueens | theirBishops)).empty()
-				&& (attacks::getRookAttacks  (king, after_boom) & (theirQueens | theirRooks)).empty())) {
-					return false;
-				}
-			}
-			
-
-		}
-
-		//Try to fix castling rules in the future with connected kings and checks, etc
-		if (move.type() == MoveType::Castling)
-		{
-			const auto kingDst = toSquare(move.srcRank(), move.srcFile() < move.dstFile() ? 6 : 2);
-			return !connected_kings(move) && !isCheck() && !state.threats[kingDst] && !(g_opts.chess960 && state.pinned[dst]);
-		}
-
-		else if (move.type() == MoveType::EnPassant)
-		{
-			auto rank = squareRank(dst);
-			const auto file = squareFile(dst);
-
-			rank = rank == 2 ? 3 : 4;
-
-			const auto captureSquare = toSquare(rank, file);
-
-			auto boom = attacks::getKingAttacks(dst) & (bbs.occupancy() ^ bbs.pawns()); 
-			auto after_boom = bbs.occupancy() ^ (boom | Bitboard::fromSquare(src) | Bitboard::fromSquare(captureSquare)); //no dst, src and pawn captured
-
-			const auto ours = bbs.forColor(us);
-			const auto theirs = bbs.forColor(them);
-
-			const auto theirQueens = bbs.queens(them) & after_boom;
-			const auto theirBishops = bbs.bishops(them) & after_boom;
-			const auto theirRooks = bbs.rooks(them) & after_boom;
-
-			if (boom & ourKing) {
-				return false;
-			} // Can't explode our own king
-			if (boom & theirKing) {
-				return true;
-			} //Can explode their king
-			if (!(attacks::getKingAttacks(king) & theirKing)) {
-			if (!((attacks::getBishopAttacks(king, after_boom) & (theirQueens | theirBishops)).empty()
-				&& (attacks::getRookAttacks  (king, after_boom) & (theirQueens | theirRooks)).empty())) {
-					return false;
-				}
-			}
 		}
 
 		const auto moving = state.boards.pieceAt(src);
 
 		if (pieceType(moving) == PieceType::King)
 		{
-			const auto kinglessOcc = bbs.occupancy() ^ bbs.kings(us);
-			const auto theirQueens = bbs.queens(them);
-
-			//King can move out of check if it connects to the opposite King
-			if (connected_kings(move)) {
-				return true;
+			if (pieceType(state.boards.pieceAt(dst)) == PieceType::King) {
+				return false;
 			}
-			return !state.threats[move.dst()]
-				&& (attacks::getBishopAttacks(dst, kinglessOcc) & (theirQueens | bbs.bishops(them))).empty()
-				&& (attacks::getRookAttacks  (dst, kinglessOcc) & (theirQueens | bbs.  rooks(them))).empty();
 		}
 
-		// multiple checks can only be evaded with a king move (During check, already solved above that we can explode king during any check)
-		if (state.checkers.multiple()
-			|| state.pinned[src] && !rayIntersecting(src, dst)[king])
-			return false;
-
-		if (state.checkers.empty())
-			return true;
-
-		return (rayBetween(king, checker) | Bitboard::fromSquare(checker))[dst];
+		return true;
 	}
 
 	// see comment in cuckoo.cpp
@@ -1384,7 +1245,6 @@ namespace stormphrax
 
 		if (captured != Piece::None)
 		{
-			assert(pieceType(captured) != PieceType::King);
 
 			state.boards.removePiece(dst, captured);
 
@@ -1399,12 +1259,12 @@ namespace stormphrax
 			}
 
 			//Remove all pieces in a Radius of King Attack (except Pawns)
-			auto boom = attacks::getKingAttacks(dst);
+			auto boom = attacks::getKingAttacks(dst) & ~(state.boards.bbs().kings()) & ~(state.boards.bbs().pawns());
 			while(boom) {
 				auto boomsq = static_cast<Square>(util::ctz(boom));
 				boom &= boom - 1;
 				auto piece_boom = state.boards.pieceAt(boomsq);
-				if ((piece_boom != Piece::None) && (pieceType(piece_boom) != PieceType::Pawn)) {
+				if ((piece_boom != Piece::None)) {
 					state.boards.removePiece(boomsq, piece_boom);
 					if constexpr (UpdateNnue) {
 						nnueUpdates.pushSub(piece_boom, boomsq);
@@ -1417,7 +1277,9 @@ namespace stormphrax
 				}
 			}
 
-			
+			if (pieceType(piece) == PieceType::King) {
+				goto kingmove;
+			}
 			//Remove piece that did the capture
 			state.boards.removePiece(src, piece);
 
@@ -1431,7 +1293,7 @@ namespace stormphrax
 			}
 		}
 		else {
-
+		kingmove:
 		state.boards.movePiece(src, dst, piece);
 
 		if (pieceType(piece) == PieceType::King)
@@ -1484,7 +1346,6 @@ namespace stormphrax
 
 		if (captured != Piece::None)
 		{
-			assert(pieceType(captured) != PieceType::King);
 
 			state.boards.removePiece(dst, captured);
 
@@ -1494,13 +1355,13 @@ namespace stormphrax
 			if constexpr (UpdateKey)
 				state.key ^= keys::pieceSquare(captured, dst);
 			
-			//Remove all pieces in a Radius of King Attack (except Pawns)
-			auto boom = attacks::getKingAttacks(dst);
+			//Remove all pieces in a Radius of King Attack (except Pawns and Kings)
+			auto boom = attacks::getKingAttacks(dst) & ~(state.boards.bbs().kings()) & ~(state.boards.bbs().pawns());
 			while(boom) {
 				auto boomsq = static_cast<Square>(util::ctz(boom));
 				boom &= boom - 1;
 				auto piece_boom = state.boards.pieceAt(boomsq);
-				if ((piece_boom != Piece::None) && (pieceType(piece_boom) != PieceType::Pawn)) {
+				if ((piece_boom != Piece::None)) {
 					state.boards.removePiece(boomsq, piece_boom);
 					if constexpr (UpdateNnue) {
 						nnueUpdates.pushSub(piece_boom, boomsq);
@@ -1624,13 +1485,13 @@ namespace stormphrax
 		}
 
 
-			//Remove all pieces in a Radius of King Attack (except Pawns)
-			auto boom = attacks::getKingAttacks(dst);
+			//Remove all pieces in a Radius of King Attack (except Pawns and Kings)
+			auto boom = attacks::getKingAttacks(dst) & ~(state.boards.bbs().kings()) & ~(state.boards.bbs().pawns());
 			while(boom) {
 				auto boomsq = static_cast<Square>(util::ctz(boom));
 				boom &= boom - 1;
 				auto piece_boom = state.boards.pieceAt(boomsq);
-				if ((piece_boom != Piece::None) && (pieceType(piece_boom) != PieceType::Pawn)) {
+				if ((piece_boom != Piece::None)) {
 					state.boards.removePiece(boomsq, piece_boom);
 					if constexpr (UpdateNnue) {
 						nnueUpdates.pushSub(piece_boom, boomsq);

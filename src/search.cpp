@@ -467,10 +467,10 @@ namespace stormphrax::search
 		if (!pvNode)
 		{
 			if (pos.isVariantOver()) {
-				if (pos.isAtomicWin()) {
+				if (pos.isAtomarWin()) {
 					return (ScoreMate - ply);
 				}
-				else if (pos.isAtomicLoss()) {
+				else if (pos.isAtomarLoss()) {
 					return (-ScoreMate + ply);
 				}
 			}
@@ -968,10 +968,10 @@ namespace stormphrax::search
 		if (legalMoves == 0)
 		{
 			if (pos.isVariantOver()) {
-				if (pos.isAtomicWin()) {
+				if (pos.isAtomarWin()) {
 					return (ScoreMate - ply);
 				}
-				else if (pos.isAtomicLoss()) {
+				else if (pos.isAtomarLoss()) {
 					return (-ScoreMate + ply);
 				}
 			}
@@ -1002,10 +1002,10 @@ namespace stormphrax::search
 		auto &pos = thread.pos;
 
 		if (pos.isVariantOver()) {
-			if (pos.isAtomicWin()) {
+			if (pos.isAtomarWin()) {
 				return (ScoreMate - ply);
 			}
-			else if (pos.isAtomicLoss()) {
+			else if (pos.isAtomarLoss()) {
 				return (-ScoreMate + ply);
 			}
 		}

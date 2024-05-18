@@ -186,12 +186,12 @@ namespace stormphrax
 
 			if (captured != Piece::None) {
 				key ^= keys::pieceSquare(captured, move.dst());
-				auto boom = attacks::getKingAttacks(move.dst());
+				auto boom = attacks::getKingAttacks(move.dst()) & ~(state.boards.bbs().kings()) & ~(state.boards.bbs().pawns());
 				while(boom) {
 					auto boomsq = static_cast<Square>(util::ctz(boom));
 					boom &= boom - 1;
 					auto piece_boom = state.boards.pieceAt(boomsq);
-					if ((piece_boom != Piece::None) && (pieceType(piece_boom) != PieceType::Pawn)) {
+					if ((piece_boom != Piece::None)) {
 						key ^= keys::pieceSquare(piece_boom, boomsq);
 				}
 			}
@@ -228,9 +228,8 @@ namespace stormphrax
 			const auto knights = bbs.knights();
 			attackers |= knights & attacks::getKnightAttacks(square);
 
-			/*const auto kings = bbs.kings();
-			attackers |= kings & attacks::getKingAttacks(square);*/
-			//Ignore King attacks
+			const auto kings = bbs.kings();
+			attackers |= kings & attacks::getKingAttacks(square);
 
 			return attackers;
 		}
@@ -259,10 +258,9 @@ namespace stormphrax
 			const auto knights = bbs.knights(attacker);
 			attackers |= knights & attacks::getKnightAttacks(square);
 
-			//const auto kings = bbs.kings(attacker);
-			//attackers |= kings & attacks::getKingAttacks(square);
-			//Ignore King attacks
-
+			const auto kings = bbs.kings(attacker);
+			attackers |= kings & attacks::getKingAttacks(square);
+			
 			return attackers;
 		}
 		[[nodiscard]] inline auto attackersToPos(Square square, Bitboard occ, Color attacker) const
@@ -322,9 +320,9 @@ namespace stormphrax
 				!(pawns & attacks::getPawnAttacks(square, oppColor(attacker))).empty())
 				return true;
 
-			//if (const auto kings = bbs.kings(attacker);
-				//!(kings & attacks::getKingAttacks(square)).empty())
-				//return true;
+			if (const auto kings = bbs.kings(attacker);
+				!(kings & attacks::getKingAttacks(square)).empty())
+				return true;
 			//Ignore King Attacks
 
 			const auto queens = bbs.queens(attacker);
@@ -375,7 +373,7 @@ namespace stormphrax
 
 				return ((blackKingCount != 1) || (whiteKingCount != 1)); 
 			}
-		[[nodiscard]] inline auto isAtomicWin() const { 
+		[[nodiscard]] inline auto isAtomarWin() const { 
 
 				const auto &bbs = this->bbs();
 
@@ -384,7 +382,7 @@ namespace stormphrax
 
 				return (theirKing != 1); 
 			}
-		[[nodiscard]] inline auto isAtomicLoss() const { 
+		[[nodiscard]] inline auto isAtomarLoss() const { 
 
 				const auto &bbs = this->bbs();
 
@@ -460,17 +458,6 @@ namespace stormphrax
 
 			// KK
 			if (bbs.nonPk().empty())
-				return true;
-
-			// KNK or KBK
-			if ((bbs.blackNonPk().empty() && bbs.whiteNonPk() == bbs.whiteMinors() && !bbs.whiteMinors().multiple())
-				|| (bbs.whiteNonPk().empty() && bbs.blackNonPk() == bbs.blackMinors() && !bbs.blackMinors().multiple()))
-				return true;
-
-			// KBKB OCB
-			if ((bbs.blackNonPk() == bbs.blackBishops() && bbs.whiteNonPk() == bbs.whiteBishops())
-				&& !bbs.blackBishops().multiple() && !bbs.whiteBishops().multiple()
-				&& (bbs.blackBishops() & boards::LightSquares).empty() != (bbs.whiteBishops() & boards::LightSquares).empty())
 				return true;
 
 			return false;
@@ -591,103 +578,23 @@ namespace stormphrax
 		template <bool UpdateKeys = true, bool UpdateNnue = true>
 		auto enPassant(Piece pawn, Square src, Square dst, eval::NnueUpdates &nnueUpdates) -> Piece;
 
-		//Function to see whether Kings are connected or not
-		[[nodiscard]] inline auto connected_kings() const {
-			const auto &state = currState();
-			const auto &bbs = this->bbs();
-			assert(((bbs.kings(Color::White)) != NULL));
-			assert(((bbs.kings(Color::Black)) != NULL));
-
-			const auto bbksq = bbs.kings(Color::Black);
-
-			if (attacks::getKingAttacks(state.king(Color::White)) & bbksq) {
-				return true;
-			}
-			return false;
-		}
-
-		//See if Kings are connected or not after a move
-		[[nodiscard]] inline auto connected_kings(Move m) const {
-			const auto &bbs = this->bbs();
-			const auto &state = currState();
-			assert(((bbs.kings(Color::White)) != NULL));
-			assert(((bbs.kings(Color::Black)) != NULL));
-
-			const auto moveSrc = m.src();
-			const auto moveDst = m.dst();
-
-			const auto movedp = state.boards.pieceAt(moveSrc);
-
-			const auto us = pieceColor(state.boards.pieceAt(moveSrc));
-			const auto them = oppColor(us);
-			const auto oppking = bbs.kings(them);
-			if (pieceType(movedp) != PieceType::King) {
-				return connected_kings();
-			}
-			else if ((pieceType(movedp) == PieceType::King) && (attacks::getKingAttacks(m.dst()) & oppking)) {
-				return true;
-			}
-			return false;
-		}
-
-		//See if Kings are connected or not in the provided state/board -> For FEN parse
-		[[nodiscard]] inline auto connected_kings(const BoardState &thisstate, const BitboardSet &thisbbs) const {
-			assert(((thisbbs.kings(Color::White)) != NULL));
-			assert(((thisbbs.kings(Color::Black)) != NULL));
-
-			const auto bbksq = thisbbs.kings(Color::Black);
-
-			if (attacks::getKingAttacks(thisstate.king(Color::White)) & bbksq) {
-				return true;
-			}
-			return false;
-		}
-
 		[[nodiscard]] inline auto calcCheckers() const
 		{
 			const auto color = toMove();
 			const auto &state = currState();
 			
-			//Checks are false if Kings are connected
+			//No Checks here
 			Bitboard empty{};
-			if (connected_kings()) {
-				return empty;
-			}
 
-			return attackersTo(state.king(color), oppColor(color));
+			return empty;
 		}
 
 		[[nodiscard]] inline auto calcPinned() const
 		{
-			const auto color = toMove();
-			const auto &state = currState();
 
-			Bitboard pinned{};
-
-			const auto king = state.king(color);
-			const auto opponent = oppColor(color);
-
-			const auto &bbs = state.boards.bbs();
-
-			const auto ourOcc = bbs.occupancy(color);
-			const auto oppOcc = bbs.occupancy(opponent);
-
-			const auto oppQueens = bbs.queens(opponent);
-
-			auto potentialAttackers
-				= attacks::getBishopAttacks(king, oppOcc) & (oppQueens | bbs.bishops(opponent))
-				| attacks::  getRookAttacks(king, oppOcc) & (oppQueens | bbs.  rooks(opponent));
-
-			while (potentialAttackers)
-			{
-				const auto potentialAttacker = potentialAttackers.popLowestSquare();
-				const auto maybePinned = ourOcc & rayBetween(potentialAttacker, king);
-
-				if (maybePinned.one())
-					pinned |= maybePinned;
-			}
-
-			return pinned;
+			Bitboard empty{};
+			//No Pins, no checks.
+			return empty;
 		}
 
 		[[nodiscard]] inline auto calcThreats() const
@@ -730,8 +637,7 @@ namespace stormphrax
 				threats |= pawns.shiftDownLeft() | pawns.shiftDownRight();
 			else threats |= pawns.shiftUpLeft() | pawns.shiftUpRight();
 
-			//threats |= attacks::getKingAttacks(state.king(them));
-			//Ignore King Threats
+			threats |= attacks::getKingAttacks(state.king(them));
 
 			return threats;
 		}

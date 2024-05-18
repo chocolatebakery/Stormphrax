@@ -336,21 +336,27 @@ namespace stormphrax
 			if (captured != Piece::None) {
 				auto them = m_pos.opponent();
 				auto us = oppColor(them);
-				move.score += Mvv[static_cast<i32>(pieceType(captured))];
+				if (pieceType(captured) == PieceType::King && pieceColor(captured) == them) {
+					move.score += ScoreMate;
+					goto kingCaptured;
+				}
+				if (pieceType(captured) == PieceType::King && pieceColor(captured) == us) {
+					move.score -= ScoreMate;
+					goto kingCaptured;
+				}
+				else {
+					move.score += Mvv[static_cast<i32>(pieceType(captured))];
+				}
 				auto ourPiece = boards.pieceAt(move.move.src());
-				move.score -= Mvv[static_cast<i32>(pieceType(ourPiece))];
-				auto boom = attacks::getKingAttacks(move.move.dst());
+				if (pieceType(ourPiece) != PieceType::King) {
+					move.score -= Mvv[static_cast<i32>(pieceType(ourPiece))];
+				}
+				auto boom = attacks::getKingAttacks(move.move.dst()) & ~(boards.bbs().kings()) & ~(boards.bbs().pawns());
 				while(boom) {
 					auto boomsq = static_cast<Square>(util::ctz(boom));
 					boom &= boom - 1;
 					auto piece_boom = boards.pieceAt(boomsq);
-					if (pieceType(piece_boom) == PieceType::King && pieceColor(piece_boom) == them) {
-						move.score += ScoreMate;
-					}
-					if (pieceType(piece_boom) == PieceType::King && pieceColor(piece_boom) == us) {
-						move.score -= ScoreMate;
-					}
-					else if ((piece_boom != Piece::None) && (pieceType(piece_boom) != PieceType::Pawn)) {
+					if ((piece_boom != Piece::None)) {
 						if (pieceColor(piece_boom) == us) {
 							move.score -= Mvv[static_cast<i32>(pieceType(piece_boom))];
 						}
@@ -360,7 +366,7 @@ namespace stormphrax
 					}
 				}
 			}
-
+			kingCaptured:
 			if ((captured != Piece::None || move.move.promo() == PieceType::Queen)
 				&& see::see(m_pos, move.move))
 				move.score += GoodNoisyBonus;

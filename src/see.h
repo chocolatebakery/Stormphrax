@@ -72,12 +72,12 @@ namespace stormphrax::see
 		const auto &bbs = boards.bbs();
 		auto from = move.src();
 		auto us = pieceColor(boards.pieceAt(move.src()));	
-		auto boom = ((attacks::getKingAttacks(move.dst()) & ~(bbs.pawns()) | (Bitboard::fromSquare(move.dst()) | Bitboard::fromSquare(move.src()))));
+		auto boom = ((attacks::getKingAttacks(move.dst()) & ~(bbs.pawns() & ~(bbs.kings())) | (Bitboard::fromSquare(move.dst()) | Bitboard::fromSquare(move.src()))));
 
-		if (boom & bbs.kings(oppColor(us))) {
+		if (Bitboard::fromSquare(move.dst()) & bbs.kings(oppColor(us))) {
 			return ScoreMate;
 		}
-		if ((boom & bbs.kings(us))) {
+		if ((Bitboard::fromSquare(move.dst()) & bbs.kings(us))) {
 			return -ScoreMate;
 		}
 
@@ -119,7 +119,7 @@ namespace stormphrax::see
 		auto victim = boards.pieceAt(move.src());
 		auto stm = pieceColor(victim);
 		auto stmKing = bbs.occupancy(stm) & bbs.forPiece(PieceType::King);
-		auto boom = ((attacks::getKingAttacks(move.dst()) & ~(bbs.pawns()) | (Bitboard::fromSquare(move.dst()) | Bitboard::fromSquare(move.src())) & bbs.occupancy()));
+		auto boom = ((attacks::getKingAttacks(move.dst()) & ~(bbs.pawns() & ~(bbs.kings())) | (Bitboard::fromSquare(move.dst()) | (Bitboard::fromSquare(move.src()) & ~(bbs.kings()))) & bbs.occupancy()));
 
 		auto result = 0;
 		if (boards.pieceAt(move.dst()) == Piece::None) {
