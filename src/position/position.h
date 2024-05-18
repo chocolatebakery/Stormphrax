@@ -459,14 +459,15 @@ namespace stormphrax
 				return false;
 
 			// KK
-			if (bbs.nonPk().empty())
-				return true;
-
-			// KNK or KBK
-			if ((bbs.blackNonPk().empty() && bbs.whiteNonPk() == bbs.whiteMinors() && !bbs.whiteMinors().multiple())
-				|| (bbs.whiteNonPk().empty() && bbs.blackNonPk() == bbs.blackMinors() && !bbs.blackMinors().multiple()))
-				return true;
-
+			if (bbs.nonPk().empty()) {
+				if (isAtomicLoss() || isAtomicWin()) {
+					return false;
+				}
+				else {
+					return true;
+				}
+			}
+			
 			// KBKB OCB
 			if ((bbs.blackNonPk() == bbs.blackBishops() && bbs.whiteNonPk() == bbs.whiteBishops())
 				&& !bbs.blackBishops().multiple() && !bbs.whiteBishops().multiple()
