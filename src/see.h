@@ -35,7 +35,7 @@ namespace stormphrax::see
 		constexpr Score Bishop = 450;
 		constexpr Score Rook = 650;
 		constexpr Score Queen = 1250;
-		constexpr Score King = 0;
+		constexpr Score King = 450;
 	}
 
 	constexpr auto Values = std::array {
@@ -83,28 +83,16 @@ namespace stormphrax::see
 
 		auto score = 0;
 
-		/*if (pieceColor(nextVictim) == us) {
-			score -= value(nextVictim);
-		}
-		else {
-			score += value(nextVictim);
-		}
-
-		if (pieceColor(boards.pieceAt(move.dst())) == us) {
-			score -= value(boards.pieceAt(move.dst()));
-		}
-		else {
-			score += value(boards.pieceAt(move.dst()));
-		}*/
-
 		while (boom) {
 			auto boom_sq = static_cast<Square>(util::ctz(boom));
 			boom &= boom - 1;
-			if (pieceColor(boards.pieceAt(boom_sq)) == us) {
-				score -= value(boards.pieceAt(boom_sq));
-			}
-			else {
-				score += value(boards.pieceAt(boom_sq));
+			if (pieceType(boards.pieceAt(boom_sq)) != PieceType::King) {
+				if (pieceColor(boards.pieceAt(boom_sq)) == us) {
+					score -= value(boards.pieceAt(boom_sq));
+				}
+				else {
+					score += value(boards.pieceAt(boom_sq));
+				}
 			}
 		}
 
@@ -119,23 +107,27 @@ namespace stormphrax::see
 		auto victim = boards.pieceAt(move.src());
 		auto stm = pieceColor(victim);
 		auto stmKing = bbs.occupancy(stm) & bbs.forPiece(PieceType::King);
-		auto boom = ((attacks::getKingAttacks(move.dst()) & ~(bbs.pawns() & ~(bbs.kings())) | (Bitboard::fromSquare(move.dst()) | (Bitboard::fromSquare(move.src()) & ~(bbs.kings()))) & bbs.occupancy()));
+		auto fromTo = Bitboard::fromSquare(move.dst());
+		if (pieceType(victim) != PieceType::King) {
+			fromTo |= Bitboard::fromSquare(move.src());
+		}
+		auto boom = ((attacks::getKingAttacks(move.dst()) & ~(bbs.pawns() & ~(bbs.kings())) | fromTo) & bbs.occupancy());
 
 		auto result = 0;
 		if (boards.pieceAt(move.dst()) == Piece::None) {
-			auto occupied = bbs.occupancy() ^ ((Bitboard::fromSquare(move.src())) | (Bitboard::fromSquare(move.dst())));
+			auto occupied = bbs.occupancy() ^ fromTo;
 			auto attackers = pos.attackersToPos(move.dst(), occupied, oppColor(stm));
       		auto minAttacker = ScoreMaxMate;
 
 			while (attackers) {
 				auto sq = static_cast<Square>(util::ctz(attackers));
 				attackers &= attackers - 1;
-				if (pieceType((boards.pieceAt(sq))) != PieceType::King) {
-					minAttacker = std::min(minAttacker, boom & Bitboard::fromSquare(sq) ? 0 : value(boards.pieceAt(sq)));
+				
+				if ((pieceType(victim) == PieceType::King) && (pieceType(boards.pieceAt(sq)) == PieceType::King)) {
+					minAttacker = 0;
 				}
-
-				if (minAttacker == ScoreMaxMate) {
-					return 0;
+				else {
+					minAttacker = std::min(minAttacker, boom & Bitboard::fromSquare(sq) ? 0 : value(boards.pieceAt(sq)));
 				}
 				result += minAttacker; 
 			}
@@ -144,21 +136,13 @@ namespace stormphrax::see
   		{
 			auto boom_sq = static_cast<Square>(util::ctz(boom));
 			boom &= boom - 1;
-      		if (pieceType(boards.pieceAt(boom_sq)) == PieceType::King) {
-
-					if (pieceColor(boards.pieceAt(boom_sq)) == stm) {
-						return -ScoreMate;
-					}
-					else if (pieceColor(boards.pieceAt(boom_sq)) == oppColor(stm)) {
-						return ScoreMate;
-					}
-
-			}
-			else if (pieceColor(boards.pieceAt(boom_sq)) == stm) {
-				result -= value(boards.pieceAt(boom_sq));
-			}
-			else {
-				result += value(boards.pieceAt(boom_sq));
+			if (pieceType(boards.pieceAt(boom_sq)) != PieceType::King) {
+				if (pieceColor(boards.pieceAt(boom_sq)) == stm) {
+					result -= value(boards.pieceAt(boom_sq));
+				}
+				else {
+					result += value(boards.pieceAt(boom_sq));
+				}
 			}
  		 }
 
@@ -166,7 +150,17 @@ namespace stormphrax::see
 
 		if (boards.pieceAt(move.dst()) != Piece::None)
 		{
-			result += gain(boards,move,victim,move.dst());
+			if (pieceType(boards.pieceAt(move.dst())) == PieceType::King) {
+				if (pieceColor(boards.pieceAt(move.dst())) == stm) {
+					result -= ScoreMate;
+				}
+				else {
+					result += ScoreMate;
+				}
+			}
+			else {
+				result += gain(boards,move,victim,move.dst());
+			}
 		}
 
 		if (boards.pieceAt(move.dst()) != Piece::None) {

@@ -191,11 +191,17 @@ namespace stormphrax
 					auto boomsq = static_cast<Square>(util::ctz(boom));
 					boom &= boom - 1;
 					auto piece_boom = state.boards.pieceAt(boomsq);
-					if ((piece_boom != Piece::None)) {
+					if ((piece_boom != Piece::None) && (pieceType(piece_boom) != PieceType::King) && (pieceType(piece_boom) != PieceType::Pawn)) {
 						key ^= keys::pieceSquare(piece_boom, boomsq);
 				}
 			}
-				key ^= keys::pieceSquare(moving, move.src());
+				if (pieceType(moving) == PieceType::King) {
+					key ^= keys::pieceSquare(moving, move.src());
+					key ^= keys::pieceSquare(moving, move.dst());
+				}
+				else {
+					key ^= keys::pieceSquare(moving, move.src());
+				}
 			}
 			else {
 				key ^= keys::pieceSquare(moving, move.src());
@@ -457,8 +463,14 @@ namespace stormphrax
 				return false;
 
 			// KK
-			if (bbs.nonPk().empty())
-				return true;
+			if (bbs.nonPk().empty()) {
+				if (isAtomarLoss() || isAtomarWin()) {
+					return false;
+				}
+				else {
+					return true;
+				}
+			}
 
 			return false;
 		}

@@ -1030,8 +1030,12 @@ namespace stormphrax::search
 
 		const auto eval = [&]
 		{
-			if (pos.isCheck())
+			if (pos.isAtomarLoss()) {
 				return -ScoreMate;
+			}
+			else if (pos.isAtomarWin()) {
+				return ScoreMate;
+			}
 			else
 			{
 				const auto staticEval = eval::staticEval(pos, thread.nnueState, m_contempt);

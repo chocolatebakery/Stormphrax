@@ -1245,6 +1245,7 @@ namespace stormphrax
 
 		if (captured != Piece::None)
 		{
+			assert ((pieceType(state.boards.pieceAt(dst)) != PieceType::King) && (pieceType(state.boards.pieceAt(src) != PieceType::King)));
 
 			state.boards.removePiece(dst, captured);
 
@@ -1264,7 +1265,7 @@ namespace stormphrax
 				auto boomsq = static_cast<Square>(util::ctz(boom));
 				boom &= boom - 1;
 				auto piece_boom = state.boards.pieceAt(boomsq);
-				if ((piece_boom != Piece::None)) {
+				if ((piece_boom != Piece::None) && (pieceType(piece_boom) != PieceType::King) && (pieceType(piece_boom) != PieceType::Pawn)) {
 					state.boards.removePiece(boomsq, piece_boom);
 					if constexpr (UpdateNnue) {
 						nnueUpdates.pushSub(piece_boom, boomsq);
@@ -1278,8 +1279,33 @@ namespace stormphrax
 			}
 
 			if (pieceType(piece) == PieceType::King) {
-				goto kingmove;
-			}
+
+					state.boards.movePiece(src, dst, piece);
+
+					const auto color = pieceColor(piece);
+
+					if constexpr (UpdateNnue)
+						{
+							if (eval::InputFeatureSet::refreshRequired(color, state.king(color), dst))
+								nnueUpdates.setRefresh(color);
+						}
+
+						state.king(color) = dst;
+
+					if constexpr (UpdateNnue)
+					{
+						nnueUpdates.pushSubAdd(piece, src, dst);
+					}
+
+					if constexpr (UpdateKey)
+					{
+						const auto key = keys::pieceSquare(piece, src) ^ keys::pieceSquare(piece, dst);
+						state.key ^= key;
+					}
+							
+				}
+
+			else {
 			//Remove piece that did the capture
 			state.boards.removePiece(src, piece);
 
@@ -1291,9 +1317,9 @@ namespace stormphrax
 				const auto key = keys::pieceSquare(piece, src);
 				state.key ^= key;
 			}
+			}
 		}
 		else {
-		kingmove:
 		state.boards.movePiece(src, dst, piece);
 
 		if (pieceType(piece) == PieceType::King)
