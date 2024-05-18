@@ -1,11 +1,11 @@
 # THIS MAKEFILE IS ONLY INTENDED FOR OPENBENCH
 # BUILD WITH CMAKE PER THE INSTRUCTIONS IN THE README
 
-VERSION := 02
-EVALFILE = src/eval/atomic-02.nnue
+VERSION := 00_05
+EVALFILE = src/eval/atomic-random.nnue
 
 ifndef EXE
-    EXE = stormphrax-$(VERSION)
+    EXE = stormphrax-atomic-$(VERSION)
     NO_EXE_SET = true
 endif
 

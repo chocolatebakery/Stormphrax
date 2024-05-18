@@ -143,7 +143,7 @@ namespace stormphrax::eval
 				//Think of a solution to atomic (Multiple captures) addcount=0 subcount > 1
 				if (addCount == 0 && subCount > 1) {
 					StaticVector<u32, 12> subArray = {};
-					for (int i=0; i < 12;i++) {
+					for (int i=0; i <= subCount ;i++) {
 						auto [subPiece, subSquare] = updates.sub[i];
 						if (pieceType(subPiece) == PieceType::Queen || pieceType(subPiece) == PieceType::Bishop || pieceType(subPiece) == PieceType::King || pieceType(subPiece) == PieceType::Knight || pieceType(subPiece) == PieceType::Pawn || pieceType(subPiece) == PieceType::Rook) {
 							auto sub = featureIndex(c, subPiece, subSquare, king);
