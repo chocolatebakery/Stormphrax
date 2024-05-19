@@ -317,7 +317,7 @@ namespace stormphrax::datagen
 					}
 
 					//const bool filtered = thread->pos.isCheck() || thread->pos.isNoisy(move) || thread->pos.isAtomicLoss() || thread->pos.isAtomicWin();
-					const bool filtered = thread->pos.isAtomicLoss() || thread->pos.isAtomicWin(); //Filtering Captures and No King Positions Keeping Checks
+					const bool filtered = thread->pos.isVariantOver(); //Filtering No King Positions
 
 					thread->pos.applyMoveUnchecked<true, false>(move, &thread->nnueState);
 
