@@ -463,13 +463,8 @@ namespace stormphrax
 				return false;
 
 			// KK
-			if (bbs.nonPk().empty()) {
-				if (isAtomarLoss() || isAtomarWin()) {
-					return false;
-				}
-				else {
-					return true;
-				}
+			if (bbs.nonPk().empty() && !(isVariantOver())) {
+				return true;
 			}
 
 			return false;
