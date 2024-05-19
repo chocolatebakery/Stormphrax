@@ -79,8 +79,8 @@ namespace stormphrax::datagen
 			{
 				if (data.nodes >= m_hardNodeLimit)
 				{
-					std::cout << "thread " << m_threadId << ": stopping search after "
-						<< data.nodes << " nodes (limit: " << m_hardNodeLimit << ")" << std::endl;
+					//std::cout << "thread " << m_threadId << ": stopping search after "
+					//	<< data.nodes << " nodes (limit: " << m_hardNodeLimit << ")" << std::endl;
 					return true;
 				}
 
@@ -317,7 +317,7 @@ namespace stormphrax::datagen
 					}
 
 					//const bool filtered = thread->pos.isCheck() || thread->pos.isNoisy(move) || thread->pos.isAtomicLoss() || thread->pos.isAtomicWin();
-					const bool filtered = thread->pos.isCheck() || thread->pos.isNoisy(move) || thread->pos.isAtomicLoss() || thread->pos.isAtomicWin(); //Filtering Captures and No King Positions Keeping Checks
+					const bool filtered = thread->pos.isAtomicLoss() || thread->pos.isAtomicWin(); //Filtering Captures and No King Positions Keeping Checks
 
 					thread->pos.applyMoveUnchecked<true, false>(move, &thread->nnueState);
 
