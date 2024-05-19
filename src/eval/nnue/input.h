@@ -170,7 +170,7 @@ namespace stormphrax::eval::nnue
 			for (u32 i = 0; i < OutputCount; ++i)
 			{
 				dst[i] = src[i];
-				for (usize j = 0; j <= vecSubCount ; j++) {
+				for (usize j = 0; j < vecSubCount ; j++) {
 					u32 null = 0;
 					if (sub[j] != null) {
 						dst[i] -= delta[sub[j]*OutputCount + i];

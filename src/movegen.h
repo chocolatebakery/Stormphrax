@@ -334,12 +334,13 @@ namespace stormphrax
 			}
 
 			if (captured != Piece::None) {
+				if (move.move.type() == MoveType::EnPassant) {
+					move.score += Mvv[static_cast<i32>(colorPiece(PieceType::Pawn, m_pos.opponent()))];
+				}
 				auto them = m_pos.opponent();
 				auto us = oppColor(them);
-				move.score += Mvv[static_cast<i32>(pieceType(captured))];
-				auto ourPiece = boards.pieceAt(move.move.src());
-				move.score -= Mvv[static_cast<i32>(pieceType(ourPiece))];
-				auto boom = attacks::getKingAttacks(move.move.dst());
+				auto fromTo = Bitboard::fromSquare(move.move.dst()) | Bitboard::fromSquare(move.move.src());
+				auto boom = ((attacks::getKingAttacks(move.move.dst()) & ~(boards.bbs().pawns())) | fromTo);
 				while(boom) {
 					auto boomsq = static_cast<Square>(util::ctz(boom));
 					boom &= boom - 1;
@@ -350,7 +351,7 @@ namespace stormphrax
 					if (pieceType(piece_boom) == PieceType::King && pieceColor(piece_boom) == us) {
 						move.score -= ScoreMate;
 					}
-					else if ((piece_boom != Piece::None) && (pieceType(piece_boom) != PieceType::Pawn)) {
+					else if ((piece_boom != Piece::None)) {
 						if (pieceColor(piece_boom) == us) {
 							move.score -= Mvv[static_cast<i32>(pieceType(piece_boom))];
 						}

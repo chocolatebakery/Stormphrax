@@ -71,8 +71,9 @@ namespace stormphrax::see
 	inline auto gain(const PositionBoards &boards, Move move, Piece nextVictim, Square s) {
 		const auto &bbs = boards.bbs();
 		auto from = move.src();
-		auto us = pieceColor(boards.pieceAt(move.src()));	
-		auto boom = ((attacks::getKingAttacks(move.dst()) & ~(bbs.pawns()) | (Bitboard::fromSquare(move.dst()) | Bitboard::fromSquare(move.src()))));
+		auto us = pieceColor(boards.pieceAt(move.src()));
+		auto fromTo = Bitboard::fromSquare(move.dst()) | Bitboard::fromSquare(move.src());	
+		auto boom = ((attacks::getKingAttacks(move.dst()) & ~(bbs.pawns())) | fromTo);
 
 		if (boom & bbs.kings(oppColor(us))) {
 			return ScoreMate;

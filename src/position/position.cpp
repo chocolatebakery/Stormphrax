@@ -1386,7 +1386,7 @@ namespace stormphrax
 		{
 			assert(pieceType(captured) != PieceType::King);
 
-			state.boards.removePiece(dst, captured);
+			/*state.boards.removePiece(dst, captured);
 
 			// NNUE update done below
 			if constexpr (UpdateNnue) {
@@ -1396,15 +1396,16 @@ namespace stormphrax
 			{
 				const auto key = keys::pieceSquare(captured, dst);
 				state.key ^= key;
-			}
+			}*/
 
 			//Remove all pieces in a Radius of King Attack (except Pawns)
-			auto boom = attacks::getKingAttacks(dst);
+			auto fromTo = Bitboard::fromSquare(src) | Bitboard::fromSquare(dst);
+			auto boom = ((attacks::getKingAttacks(dst) & ~(state.boards.bbs().pawns())) | fromTo);
 			while(boom) {
 				auto boomsq = static_cast<Square>(util::ctz(boom));
 				boom &= boom - 1;
 				auto piece_boom = state.boards.pieceAt(boomsq);
-				if ((piece_boom != Piece::None) && (pieceType(piece_boom) != PieceType::Pawn)) {
+				if (piece_boom != Piece::None) {
 					state.boards.removePiece(boomsq, piece_boom);
 					if constexpr (UpdateNnue) {
 						nnueUpdates.pushSub(piece_boom, boomsq);
@@ -1419,7 +1420,7 @@ namespace stormphrax
 
 			
 			//Remove piece that did the capture
-			state.boards.removePiece(src, piece);
+			/*state.boards.removePiece(src, piece);
 
 			if constexpr (UpdateNnue) {
 				nnueUpdates.pushSub(piece, src);
@@ -1428,7 +1429,7 @@ namespace stormphrax
 			{
 				const auto key = keys::pieceSquare(piece, src);
 				state.key ^= key;
-			}
+			}*/
 		}
 		else {
 
@@ -1486,21 +1487,14 @@ namespace stormphrax
 		{
 			assert(pieceType(captured) != PieceType::King);
 
-			state.boards.removePiece(dst, captured);
-
-			if constexpr (UpdateNnue)
-				nnueUpdates.pushSub(captured, dst);
-
-			if constexpr (UpdateKey)
-				state.key ^= keys::pieceSquare(captured, dst);
-			
 			//Remove all pieces in a Radius of King Attack (except Pawns)
-			auto boom = attacks::getKingAttacks(dst);
+			auto fromTo = Bitboard::fromSquare(dst) | Bitboard::fromSquare(src);
+			auto boom = ((attacks::getKingAttacks(dst) & ~(state.boards.bbs().pawns())) | fromTo);
 			while(boom) {
 				auto boomsq = static_cast<Square>(util::ctz(boom));
 				boom &= boom - 1;
 				auto piece_boom = state.boards.pieceAt(boomsq);
-				if ((piece_boom != Piece::None) && (pieceType(piece_boom) != PieceType::Pawn)) {
+				if (piece_boom != Piece::None) {
 					state.boards.removePiece(boomsq, piece_boom);
 					if constexpr (UpdateNnue) {
 						nnueUpdates.pushSub(piece_boom, boomsq);
@@ -1511,18 +1505,6 @@ namespace stormphrax
 						state.key ^= key;
 					}
 				}
-			}
-
-			//Remove pawn that did the capture
-			state.boards.removePiece(src, pawn);
-
-			if constexpr (UpdateNnue) {
-				nnueUpdates.pushSub(pawn, src);
-			}
-			if constexpr (UpdateKey)
-			{
-				const auto key = keys::pieceSquare(pawn, src);
-				state.key ^= key;
 			}
 		}
 		else {
@@ -1625,12 +1607,13 @@ namespace stormphrax
 
 
 			//Remove all pieces in a Radius of King Attack (except Pawns)
-			auto boom = attacks::getKingAttacks(dst);
+			auto fromTo = Bitboard::fromSquare(src);
+			auto boom = ((attacks::getKingAttacks(dst) & ~(state.boards.bbs().pawns())) | fromTo);
 			while(boom) {
 				auto boomsq = static_cast<Square>(util::ctz(boom));
 				boom &= boom - 1;
 				auto piece_boom = state.boards.pieceAt(boomsq);
-				if ((piece_boom != Piece::None) && (pieceType(piece_boom) != PieceType::Pawn)) {
+				if (piece_boom != Piece::None) {
 					state.boards.removePiece(boomsq, piece_boom);
 					if constexpr (UpdateNnue) {
 						nnueUpdates.pushSub(piece_boom, boomsq);
@@ -1641,19 +1624,6 @@ namespace stormphrax
 						state.key ^= key;
 					}
 				}
-			}
-
-			
-			//Remove the pawn that did the capture
-			state.boards.removePiece(src, pawn);
-
-			if constexpr (UpdateNnue) {
-				nnueUpdates.pushSub(pawn, src);
-			}
-			if constexpr (UpdateKey)
-			{
-				const auto key = keys::pieceSquare(pawn, src);
-				state.key ^= key;
 			}
 
 
