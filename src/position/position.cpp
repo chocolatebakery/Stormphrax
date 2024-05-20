@@ -1386,18 +1386,6 @@ namespace stormphrax
 		{
 			assert(pieceType(captured) != PieceType::King);
 
-			/*state.boards.removePiece(dst, captured);
-
-			// NNUE update done below
-			if constexpr (UpdateNnue) {
-				nnueUpdates.pushSub(captured, dst);
-			}
-			if constexpr (UpdateKey)
-			{
-				const auto key = keys::pieceSquare(captured, dst);
-				state.key ^= key;
-			}*/
-
 			//Remove all pieces in a Radius of King Attack (except Pawns)
 			auto fromTo = Bitboard::fromSquare(src) | Bitboard::fromSquare(dst);
 			auto boom = ((attacks::getKingAttacks(dst) & ~(state.boards.bbs().pawns())) | fromTo);
@@ -1417,19 +1405,6 @@ namespace stormphrax
 					}
 				}
 			}
-
-			
-			//Remove piece that did the capture
-			/*state.boards.removePiece(src, piece);
-
-			if constexpr (UpdateNnue) {
-				nnueUpdates.pushSub(piece, src);
-			}
-			if constexpr (UpdateKey)
-			{
-				const auto key = keys::pieceSquare(piece, src);
-				state.key ^= key;
-			}*/
 		}
 		else {
 
