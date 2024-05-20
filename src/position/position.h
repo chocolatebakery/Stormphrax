@@ -185,22 +185,20 @@ namespace stormphrax
 			auto key = state.key;
 
 			if (captured != Piece::None) {
-				key ^= keys::pieceSquare(captured, move.dst());
-				auto boom = attacks::getKingAttacks(move.dst()) & ~(state.boards.bbs().kings()) & ~(state.boards.bbs().pawns());
+
+				auto fromTo = Bitboard::fromSquare(move.dst()) | (Bitboard::fromSquare(move.src()) & ~(state.boards.bbs().kings()));
+				auto boom = ((attacks::getKingAttacks(move.dst()) & ~(state.boards.bbs().pawns()) & ~(state.boards.bbs().kings())) | fromTo);
 				while(boom) {
 					auto boomsq = static_cast<Square>(util::ctz(boom));
 					boom &= boom - 1;
 					auto piece_boom = state.boards.pieceAt(boomsq);
-					if ((piece_boom != Piece::None) && (pieceType(piece_boom) != PieceType::King) && (pieceType(piece_boom) != PieceType::Pawn)) {
+					if ((piece_boom != Piece::None)) {
 						key ^= keys::pieceSquare(piece_boom, boomsq);
 				}
 			}
 				if (pieceType(moving) == PieceType::King) {
 					key ^= keys::pieceSquare(moving, move.src());
 					key ^= keys::pieceSquare(moving, move.dst());
-				}
-				else {
-					key ^= keys::pieceSquare(moving, move.src());
 				}
 			}
 			else {

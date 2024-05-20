@@ -72,7 +72,8 @@ namespace stormphrax::see
 		const auto &bbs = boards.bbs();
 		auto from = move.src();
 		auto us = pieceColor(boards.pieceAt(move.src()));	
-		auto boom = ((attacks::getKingAttacks(move.dst()) & ~(bbs.pawns() & ~(bbs.kings())) | (Bitboard::fromSquare(move.dst()) | Bitboard::fromSquare(move.src()))));
+		auto fromTo = Bitboard::fromSquare(move.dst()) | (Bitboard::fromSquare(move.src()) & ~(bbs.kings()));	
+		auto boom = ((attacks::getKingAttacks(move.dst()) & ~(bbs.pawns()) & ~(bbs.kings())) | fromTo);
 
 		if (Bitboard::fromSquare(move.dst()) & bbs.kings(oppColor(us))) {
 			return ScoreMate;
