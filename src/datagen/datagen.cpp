@@ -80,7 +80,7 @@ namespace stormphrax::datagen
 				if (data.nodes >= m_hardNodeLimit)
 				{
 					//std::cout << "thread " << m_threadId << ": stopping search after "
-					//	<< data.nodes << " nodes (limit: " << m_hardNodeLimit << ")" << std::endl;
+						//<< data.nodes << " nodes (limit: " << m_hardNodeLimit << ")" << std::endl;
 					return true;
 				}
 
@@ -122,10 +122,10 @@ namespace stormphrax::datagen
 			i32 m_custDepthMaxLimit{};
 		};
 
-		constexpr usize VerificationHardNodeLimit = 122000;
+		constexpr usize VerificationHardNodeLimit = 250000;
 
 		constexpr usize DatagenSoftNodeLimit = 5000;
-		constexpr usize DatagenHardNodeLimit = 61000;
+		constexpr usize DatagenHardNodeLimit = 122000;
 
 
 		constexpr Score VerificationScoreLimit = 1000;
