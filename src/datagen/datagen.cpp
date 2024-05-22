@@ -122,10 +122,10 @@ namespace stormphrax::datagen
 			i32 m_custDepthMaxLimit{};
 		};
 
-		constexpr usize VerificationHardNodeLimit = 250000;
+		constexpr usize VerificationHardNodeLimit = 122000;
 
 		constexpr usize DatagenSoftNodeLimit = 5000;
-		constexpr usize DatagenHardNodeLimit = 25000;
+		constexpr usize DatagenHardNodeLimit = 61000;
 
 
 		constexpr Score VerificationScoreLimit = 1000;
@@ -228,7 +228,7 @@ namespace stormphrax::datagen
 				thread->pos.clearStateHistory();
 				thread->nnueState.reset(thread->pos.bbs(), thread->pos.blackKing(), thread->pos.whiteKing());
 
-				thread->maxDepth = 6; //Max depth 10
+				thread->maxDepth = 8; //Max depth 10
 				limiter.setSoftNodeLimit(std::numeric_limits<usize>::max());
 				limiter.setHardNodeLimit(VerificationHardNodeLimit);
 				limiter.setDepthLimit(8);
