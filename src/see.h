@@ -123,7 +123,7 @@ namespace stormphrax::see
 		auto boom = ((attacks::getKingAttacks(move.dst()) & ~(bbs.pawns()) | (Bitboard::fromSquare(move.dst()) | Bitboard::fromSquare(move.src())) & bbs.occupancy()));
 
 		auto result = 0;
-		if (boards.pieceAt(move.dst()) == Piece::None) {
+		if (boards.pieceAt(move.dst()) == Piece::None || move.type() == MoveType::Castling) {
 			auto occupied = bbs.occupancy() ^ ((Bitboard::fromSquare(move.src())) | (Bitboard::fromSquare(move.dst())));
 			auto attackers = pos.attackersToPos(move.dst(), occupied, oppColor(stm));
       		auto minAttacker = ScoreMaxMate;
@@ -165,12 +165,12 @@ namespace stormphrax::see
 
 		}
 
-		if (boards.pieceAt(move.dst()) != Piece::None)
+		if (boards.pieceAt(move.dst()) != Piece::None && move.type() != MoveType::Castling)
 		{
 			result += gain(boards,move,victim,move.dst());
 		}
 
-		if (boards.pieceAt(move.dst()) != Piece::None) {
+		if (boards.pieceAt(move.dst()) != Piece::None && move.type() != MoveType::Castling) {
 			return (result - 1);
 		}
 		return std::min(result,0);
