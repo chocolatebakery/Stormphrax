@@ -115,7 +115,7 @@ namespace stormphrax::see
 		auto boom = ((attacks::getKingAttacks(move.dst()) & ~(bbs.pawns() & ~(bbs.kings())) | fromTo) & bbs.occupancy());
 
 		auto result = 0;
-		if (boards.pieceAt(move.dst()) == Piece::None) {
+		if (boards.pieceAt(move.dst()) == Piece::None || move.type() == MoveType::Castling) {
 			auto occupied = bbs.occupancy() ^ fromTo;
 			auto attackers = pos.attackersToPos(move.dst(), occupied, oppColor(stm));
       		auto minAttacker = ScoreMaxMate;
@@ -149,7 +149,7 @@ namespace stormphrax::see
 
 		}
 
-		if (boards.pieceAt(move.dst()) != Piece::None)
+		if (boards.pieceAt(move.dst()) != Piece::None && move.type() != MoveType::Castling)
 		{
 			if (pieceType(boards.pieceAt(move.dst())) == PieceType::King) {
 				if (pieceColor(boards.pieceAt(move.dst())) == stm) {
