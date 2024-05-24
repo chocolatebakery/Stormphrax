@@ -30,11 +30,11 @@ namespace stormphrax::see
 {
 	namespace values
 	{
-		constexpr Score Pawn = 100;
-		constexpr Score Knight = 450;
-		constexpr Score Bishop = 450;
-		constexpr Score Rook = 650;
-		constexpr Score Queen = 1250;
+		constexpr Score Pawn = 63;
+		constexpr Score Knight = 391;
+		constexpr Score Bishop = 413;
+		constexpr Score Rook = 638;
+		constexpr Score Queen = 1270;
 		constexpr Score King = 0;
 	}
 

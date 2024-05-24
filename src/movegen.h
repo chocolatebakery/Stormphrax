@@ -199,11 +199,11 @@ namespace stormphrax
 
 	private:
 		static constexpr auto Mvv = std::array {
-			10, // pawn
-			38, // knight
-			40, // bishop
-			50, // rook
-			110 // queen
+			6, // pawn
+			40, // knight
+			41, // bishop
+			64, // rook
+			127 // queen
 		};
 
 		static constexpr auto PromoScores = std::array {
