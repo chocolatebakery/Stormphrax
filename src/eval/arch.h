@@ -28,7 +28,7 @@
 
 namespace stormphrax::eval
 {
-	// current arch: (768x8->128)x2->1x8, SquaredClippedReLU
+	// current arch: (768->512)x2->1, SquaredClippedReLU
 
 	constexpr i32 L1Q = 255;
 	constexpr i32 OutputQ = 64;
@@ -36,7 +36,7 @@ namespace stormphrax::eval
 	using L1Activation = nnue::activation::SquaredClippedReLU<i16, i32, L1Q>;
 
 	constexpr u32 InputSize = 768;
-	constexpr u32 Layer1Size = 128;
+	constexpr u32 Layer1Size = 512;
 
 	constexpr i32 Scale = 400;
 
