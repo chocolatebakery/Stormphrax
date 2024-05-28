@@ -228,7 +228,7 @@ namespace stormphrax::datagen
 				thread->pos.clearStateHistory();
 				thread->nnueState.reset(thread->pos.bbs(), thread->pos.blackKing(), thread->pos.whiteKing());
 
-				thread->maxDepth = 7; //Max depth 10
+				thread->maxDepth = 6; //Max depth 10
 				limiter.setSoftNodeLimit(std::numeric_limits<usize>::max());
 				limiter.setHardNodeLimit(VerificationHardNodeLimit);
 				limiter.setDepthLimit(8);
