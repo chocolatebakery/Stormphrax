@@ -1,8 +1,8 @@
 # THIS MAKEFILE IS ONLY INTENDED FOR OPENBENCH
 # BUILD WITH CMAKE PER THE INSTRUCTIONS IN THE README
 
-VERSION := 01
-EVALFILE = src/eval/atomar-01.nnue
+VERSION := 02
+EVALFILE = src/eval/atomar-02.nnue
 
 ifndef EXE
     EXE = stormphrax-atomar-$(VERSION)
