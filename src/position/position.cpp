@@ -1108,6 +1108,9 @@ namespace stormphrax
 				&& (attacks::getRookAttacks  (king, after_boom) & (theirQueens | theirRooks)).empty())) {
 					return false;
 				}
+				else {
+					return true;
+				}
 			}
 			
 
@@ -1149,6 +1152,9 @@ namespace stormphrax
 			if (!((attacks::getBishopAttacks(king, after_boom) & (theirQueens | theirBishops)).empty()
 				&& (attacks::getRookAttacks  (king, after_boom) & (theirQueens | theirRooks)).empty())) {
 					return false;
+				}
+				else {
+					return true;
 				}
 			}
 		}
