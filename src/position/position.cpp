@@ -1089,13 +1089,8 @@ namespace stormphrax
 					auto theirBishops = bbs.bishops(them) & after_boom;
 					auto theirRooks = bbs.rooks(them) & after_boom;
 					
-					if (!((attacks::getBishopAttacks(king, after_boom) & (theirQueens | theirBishops)).empty()
-						&& (attacks::getRookAttacks  (king, after_boom) & (theirQueens | theirRooks)).empty())) {
-							return false;
-						}
-					else {
-					return true;
-					}
+					return ((attacks::getBishopAttacks(king, after_boom) & (theirQueens | theirBishops)).empty()
+						&& (attacks::getRookAttacks  (king, after_boom) & (theirQueens | theirRooks)).empty());
 				} //Can explode the opposite king or the piece checking
 			}
 			auto after_boom = bbs.occupancy() ^ ((boom | Bitboard::fromSquare(dst)) | Bitboard::fromSquare(src));
@@ -1104,13 +1099,8 @@ namespace stormphrax
 			auto theirRooks = bbs.rooks(them) & after_boom;
 			
 			if (!(attacks::getKingAttacks(king) & theirKing)) {
-			if (!((attacks::getBishopAttacks(king, after_boom) & (theirQueens | theirBishops)).empty()
-				&& (attacks::getRookAttacks  (king, after_boom) & (theirQueens | theirRooks)).empty())) {
-					return false;
-				}
-				else {
-					return true;
-				}
+			return ((attacks::getBishopAttacks(king, after_boom) & (theirQueens | theirBishops)).empty()
+				&& (attacks::getRookAttacks  (king, after_boom) & (theirQueens | theirRooks)).empty());
 			}
 			
 
@@ -1149,13 +1139,8 @@ namespace stormphrax
 				return true;
 			} //Can explode their king
 			if (!(attacks::getKingAttacks(king) & theirKing)) {
-			if (!((attacks::getBishopAttacks(king, after_boom) & (theirQueens | theirBishops)).empty()
-				&& (attacks::getRookAttacks  (king, after_boom) & (theirQueens | theirRooks)).empty())) {
-					return false;
-				}
-				else {
-					return true;
-				}
+			return ((attacks::getBishopAttacks(king, after_boom) & (theirQueens | theirBishops)).empty()
+				&& (attacks::getRookAttacks  (king, after_boom) & (theirQueens | theirRooks)).empty());
 			}
 		}
 

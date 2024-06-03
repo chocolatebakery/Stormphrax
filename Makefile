@@ -1,8 +1,8 @@
 # THIS MAKEFILE IS ONLY INTENDED FOR OPENBENCH
 # BUILD WITH CMAKE PER THE INSTRUCTIONS IN THE README
 
-VERSION := 04e_01
-EVALFILE = src/eval/atomic-04e.nnue
+VERSION := 04f
+EVALFILE = src/eval/atomic-04f.nnue
 
 ifndef EXE
     EXE = stormphrax-atomic-$(VERSION)
