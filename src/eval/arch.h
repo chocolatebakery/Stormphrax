@@ -36,7 +36,7 @@ namespace stormphrax::eval
 	using L1Activation = nnue::activation::SquaredClippedReLU<i16, i32, L1Q>;
 
 	constexpr u32 InputSize = 768;
-	constexpr u32 Layer1Size = 256;
+	constexpr u32 Layer1Size = 512;
 
 	constexpr i32 Scale = 400;
 
