@@ -315,8 +315,9 @@ namespace stormphrax
 
 			const auto captured = m_pos.captureTarget(move);
 
-			score += m_history.noisyScore(move, captured) / 8;
-			score += see::value(captured);
+			//score += m_history.noisyScore(move, captured) / 8;
+			//score += see::value(captured);
+			score += see::gain_move(m_pos, move);
 
 			if (move.type() == MoveType::Promotion)
 				score += see::value(PieceType::Queen) - see::value(PieceType::Pawn);

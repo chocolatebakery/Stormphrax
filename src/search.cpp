@@ -911,7 +911,7 @@ namespace stormphrax::search
 			}
 
 			return inCheck ? (-ScoreMate + ply) : 0;
-
+		}
 		if (bestMove)
 		{
 			const auto historyDepth = depth + (curr.staticEval <= alpha);

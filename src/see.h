@@ -68,7 +68,7 @@ namespace stormphrax::see
 	// https://github.com/ddugovic/Stockfish/blob/eb4c78813370ebaea84724aed9f0b59d5ff3e2f2/src/position.cpp#L2184
 	// All credits to https://github.com/ddugovic and https://github.com/ianfab/ and all the MultiVariant-Stockfish contributors
 	// For the code
-	inline auto gain(const PositionBoards &boards, Move move, Piece nextVictim, Square s) {
+	inline auto gain(const PositionBoards &boards, Move move) {
 		const auto &bbs = boards.bbs();
 		auto from = move.src();
 		auto us = pieceColor(boards.pieceAt(move.src()));
@@ -167,7 +167,7 @@ namespace stormphrax::see
 
 		if (boards.pieceAt(move.dst()) != Piece::None && move.type() != MoveType::Castling)
 		{
-			result += gain(boards,move,victim,move.dst());
+			result += gain(boards,move);
 			return (result - 1);
 		}
 		
@@ -177,7 +177,7 @@ namespace stormphrax::see
 
 	inline auto gain_move(const Position &pos, Move move) {
 		const auto &boards = pos.boards();
-		return gain(boards, move, boards.pieceAt(move.src()), move.src());
+		return gain(boards, move);
 	}
 
 	[[nodiscard]] inline auto popLeastValuable(const BitboardSet &bbs,
