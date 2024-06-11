@@ -1,11 +1,11 @@
 # THIS MAKEFILE IS ONLY INTENDED FOR OPENBENCH
 # BUILD WITH CMAKE PER THE INSTRUCTIONS IN THE README
 
-VERSION := $(file < version.txt)
-EVALFILE = src/eval/net030.nnue
+VERSION := 05b
+EVALFILE = src/eval/atomic-05b.nnue
 
 ifndef EXE
-    EXE = stormphrax-$(VERSION)
+    EXE = stormphrax-atomic-$(VERSION)
     NO_EXE_SET = true
 endif
 
@@ -46,7 +46,7 @@ ifeq ($(OS), Windows_NT)
     SUFFIX := .exe
     # for fathom
     CXXFLAGS += -D_CRT_SECURE_NO_WARNINGS
-    RM := del
+    RM := rm
 else
     DETECTED_OS := $(shell uname -s)
     SUFFIX :=

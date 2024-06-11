@@ -3,3 +3,5 @@
 /.idea/
 /*.exe
 /*.profraw
+/datagen/
+/datagen_OLD/

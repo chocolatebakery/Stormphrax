@@ -62,7 +62,7 @@ namespace stormphrax::eval
 		// [black, white]
 		std::array<bool, 2> refresh{};
 
-		StaticVector<PieceSquare, 2> sub{};
+		StaticVector<PieceSquare, 12> sub{}; //Enlarge the Vector for atomic captures
 		StaticVector<PieceSquare, 2> add{};
 
 		inline auto setRefresh(Color c)
@@ -140,7 +140,22 @@ namespace stormphrax::eval
 					refreshAccumulator(*next, c, bbs, m_refreshTable, king);
 					continue;
 				}
-
+				//Think of a solution to atomic (Multiple captures) addcount=0 subcount > 1
+				if (addCount == 0 && subCount > 1) {
+					StaticVector<u32, 12> subArray = {};
+					for (int i=0; i < subCount ;i++) {
+						auto [subPiece, subSquare] = updates.sub[i];
+						if (pieceType(subPiece) == PieceType::Queen || pieceType(subPiece) == PieceType::Bishop || pieceType(subPiece) == PieceType::King || pieceType(subPiece) == PieceType::Knight || pieceType(subPiece) == PieceType::Pawn || pieceType(subPiece) == PieceType::Rook) {
+							auto sub = featureIndex(c, subPiece, subSquare, king);
+							subArray.push(sub);
+						}
+						else {
+							u32 null = 0;
+							subArray.push(null);
+						}
+					}
+					next->subFrom(*m_curr, g_network.featureTransformer(), c, subArray, subCount);
+				}
 				if (addCount == 1 && subCount == 1) // regular non-capture
 				{
 					const auto [subPiece, subSquare] = updates.sub[0];

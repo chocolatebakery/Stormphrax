@@ -157,11 +157,12 @@ namespace stormphrax
 
 			const auto pawns = bbs.pawns<Us>();
 
-			const auto  leftAttacks = pawns.template shiftUpLeftRelative <Us>() & dstMask;
+			/*const auto  leftAttacks = pawns.template shiftUpLeftRelative <Us>() & dstMask;
 			const auto rightAttacks = pawns.template shiftUpRightRelative<Us>() & dstMask;
 
 			pushUnderpromotions(quiet,  LeftOffset,  leftAttacks & theirs & PromotionRank);
-			pushUnderpromotions(quiet, RightOffset, rightAttacks & theirs & PromotionRank);
+			pushUnderpromotions(quiet, RightOffset, rightAttacks & theirs & PromotionRank);*/
+			//No Underpromotions for captures in atomic, always a Queen
 
 			auto forwards = pawns.template shiftUpRelative<Us>() & ~occ;
 
@@ -328,6 +329,7 @@ namespace stormphrax
 		const auto them = oppColor(us);
 
 		const auto ours = bbs.forColor(us);
+		const auto theirs = bbs.forColor(them);
 
 		const auto kingDstMask = bbs.forColor(them);
 
@@ -351,8 +353,11 @@ namespace stormphrax
 		{
 			if (pos.checkers().multiple())
 			{
-				generateKings<false>(noisy, pos, kingDstMask);
-				return;
+				auto their_king_radius = (attacks::getKingAttacks(pos.king(them))) & theirs;
+				generateSliders(noisy, pos, their_king_radius);
+				generatePawnsNoisy(noisy, pos, their_king_radius);
+				generateKnights(noisy, pos, their_king_radius);
+				return; //Only noisy moves allowed are if we can capture their king, when we're in check
 			}
 
 			dstMask = pos.checkers();
@@ -362,12 +367,23 @@ namespace stormphrax
 			// pawn that just moved is the checker
 			if (!(pos.checkers() & epPawn).empty())
 				pawnDstMask |= epMask;
+
+			auto boom_radius = (attacks::getKingAttacks(pos.checkers().lowestSquare())) & theirs;
+			if (pieceType(pos.boards().pieceAt(pos.checkers().lowestSquare())) == PieceType::Pawn) {
+				boom_radius = Bitboard{};
+			}
+			auto their_king_radius = (attacks::getKingAttacks(pos.king(them))) & theirs;
+			dstMask |= boom_radius;
+			dstMask |= their_king_radius; // Can explode the checking piece or blow the opposite King while in check
+			pawnDstMask |= boom_radius;
+			pawnDstMask |= their_king_radius;
 		}
 
 		generateSliders(noisy, pos, dstMask);
 		generatePawnsNoisy(noisy, pos, pawnDstMask);
 		generateKnights(noisy, pos, dstMask);
-		generateKings<false>(noisy, pos, kingDstMask);
+		//generateKings<false>(noisy, pos, kingDstMask);
+		//Kings cant capture in atomic, Delete Noisy movements from kings
 	}
 
 	auto generateQuiet(ScoredMoveList &quiet, const Position &pos) -> void
@@ -397,6 +413,7 @@ namespace stormphrax
 			pawnDstMask = dstMask = rayBetween(pos.king(us), pos.checkers().lowestSquare());
 
 			pawnDstMask |= pos.checkers() & boards::promotionRank(us);
+			
 		}
 		else pawnDstMask |= boards::promotionRank(us);
 
@@ -411,6 +428,12 @@ namespace stormphrax
 		const auto &bbs = pos.bbs();
 
 		const auto us = pos.toMove();
+		const auto them = oppColor(us);
+
+		const auto ours = bbs.forColor(us);
+		const auto theirs = bbs.forColor(them);
+
+		const auto atomicKingDstMask = ~(ours | theirs); //only quiet moves for King
 
 		const auto kingDstMask = ~bbs.forColor(pos.toMove());
 
@@ -431,21 +454,38 @@ namespace stormphrax
 		{
 			if (pos.checkers().multiple())
 			{
-				generateKings<false>(dst, pos, kingDstMask);
-				return;
+				generateKings<false>(dst, pos, atomicKingDstMask);
+				auto their_king_radius = (attacks::getKingAttacks(pos.king(them))) & theirs;
+				generateSliders(dst, pos, their_king_radius);
+				generatePawnsNoisy(dst, pos, their_king_radius);
+				generateKnights(dst, pos, their_king_radius);
+				return; //Only kings can move during multiple checks OR explode the opposite king, Need to recheck this when i Have the patience
 			}
+			
 
 			pawnDstMask = dstMask = pos.checkers()
 				| rayBetween(pos.king(us), pos.checkers().lowestSquare());
 
 			if (!(pos.checkers() & epPawn).empty())
 				pawnDstMask |= epMask;
+			
+			auto boom_radius = (attacks::getKingAttacks(pos.checkers().lowestSquare())) & theirs;
+			auto their_king_radius = (attacks::getKingAttacks(pos.king(them))) & theirs;
+			dstMask |= boom_radius;
+			dstMask |= their_king_radius; // Can explode the checking piece or blow the opposite King while in check
+			pawnDstMask |= boom_radius;
+			pawnDstMask |= their_king_radius;
+			//generateSliders(dst, pos, boom_radius);
+			//generatePawnsNoisy(dst, pos, boom_radius);
+			//generateKnights(dst, pos, boom_radius);
+
 		}
 
 		generateSliders(dst, pos, dstMask);
 		generatePawnsNoisy(dst, pos, pawnDstMask);
 		generatePawnsQuiet(dst, pos, dstMask, bbs.occupancy());
 		generateKnights(dst, pos, dstMask);
-		generateKings<true>(dst, pos, kingDstMask);
+		generateKings<true>(dst, pos, atomicKingDstMask);
+		//only quiet king moves are generated
 	}
 }

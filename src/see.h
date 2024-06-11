@@ -64,21 +64,120 @@ namespace stormphrax::see
 		return Values[static_cast<i32>(piece) * 2];
 	}
 
-	inline auto gain(const PositionBoards &boards, Move move)
-	{
-		const auto type = move.type();
+	//adapted from MultiVariant Stockfish 
+	// https://github.com/ddugovic/Stockfish/blob/eb4c78813370ebaea84724aed9f0b59d5ff3e2f2/src/position.cpp#L2184
+	// All credits to https://github.com/ddugovic and https://github.com/ianfab/ and all the MultiVariant-Stockfish contributors
+	// For the code
+	inline auto gain(const PositionBoards &boards, Move move, Piece nextVictim, Square s) {
+		const auto &bbs = boards.bbs();
+		auto from = move.src();
+		auto us = pieceColor(boards.pieceAt(move.src()));
+		auto fromTo = Bitboard::fromSquare(move.dst()) | Bitboard::fromSquare(move.src());	
+		auto boom = ((attacks::getKingAttacks(move.dst()) & ~(bbs.pawns())) | fromTo);
 
-		if (type == MoveType::Castling)
-			return 0;
-		else if (type == MoveType::EnPassant)
-			return values::Pawn;
+		if (boom & bbs.kings(oppColor(us))) {
+			return ScoreMate;
+		}
+		if ((boom & bbs.kings(us))) {
+			return -ScoreMate;
+		}
 
-		auto score = value(boards.pieceAt(move.dst()));
+		auto score = 0;
 
-		if (type == MoveType::Promotion)
-			score += value(move.promo()) - values::Pawn;
+		/*if (pieceColor(nextVictim) == us) {
+			score -= value(nextVictim);
+		}
+		else {
+			score += value(nextVictim);
+		}
+
+		if (pieceColor(boards.pieceAt(move.dst())) == us) {
+			score -= value(boards.pieceAt(move.dst()));
+		}
+		else {
+			score += value(boards.pieceAt(move.dst()));
+		}*/
+
+		while (boom) {
+			auto boom_sq = static_cast<Square>(util::ctz(boom));
+			boom &= boom - 1;
+			if (pieceColor(boards.pieceAt(boom_sq)) == us) {
+				score -= value(boards.pieceAt(boom_sq));
+			}
+			else {
+				score += value(boards.pieceAt(boom_sq));
+			}
+		}
 
 		return score;
+	}
+
+	inline auto gain_atomic(const Position &pos, Move move) {
+		
+		const auto &boards = pos.boards();
+		const auto &bbs = boards.bbs();
+
+		auto victim = boards.pieceAt(move.src());
+		auto stm = pieceColor(victim);
+		auto stmKing = bbs.occupancy(stm) & bbs.forPiece(PieceType::King);
+		auto boom = ((attacks::getKingAttacks(move.dst()) & ~(bbs.pawns()) | (Bitboard::fromSquare(move.dst()) | Bitboard::fromSquare(move.src())) & bbs.occupancy()));
+
+		auto result = 0;
+		if (boards.pieceAt(move.dst()) == Piece::None || move.type() == MoveType::Castling) {
+			auto occupied = bbs.occupancy() ^ ((Bitboard::fromSquare(move.src())) | (Bitboard::fromSquare(move.dst())));
+			auto attackers = pos.attackersToPos(move.dst(), occupied, oppColor(stm));
+      		auto minAttacker = ScoreMaxMate;
+
+			while (attackers) {
+				auto sq = static_cast<Square>(util::ctz(attackers));
+				attackers &= attackers - 1;
+				if (pieceType((boards.pieceAt(sq))) != PieceType::King) {
+					minAttacker = std::min(minAttacker, boom & Bitboard::fromSquare(sq) ? 0 : value(boards.pieceAt(sq)));
+				}
+
+				if (minAttacker == ScoreMaxMate) {
+					return 0;
+				}
+				result += minAttacker; 
+			}
+
+		while (boom)
+  		{
+			auto boom_sq = static_cast<Square>(util::ctz(boom));
+			boom &= boom - 1;
+      		if (pieceType(boards.pieceAt(boom_sq)) == PieceType::King) {
+
+					if (pieceColor(boards.pieceAt(boom_sq)) == stm) {
+						return -ScoreMate;
+					}
+					else if (pieceColor(boards.pieceAt(boom_sq)) == oppColor(stm)) {
+						return ScoreMate;
+					}
+
+			}
+			else if (pieceColor(boards.pieceAt(boom_sq)) == stm) {
+				result -= value(boards.pieceAt(boom_sq));
+			}
+			else {
+				result += value(boards.pieceAt(boom_sq));
+			}
+ 		 }
+
+		}
+
+		if (boards.pieceAt(move.dst()) != Piece::None && move.type() != MoveType::Castling)
+		{
+			result += gain(boards,move,victim,move.dst());
+			return (result - 1);
+		}
+		
+		return std::min(result,0);
+	}
+	
+
+	inline auto gain_move(const Position &pos, Move move) {
+		const auto &boards = pos.boards();
+		return gain(boards, move, boards.pieceAt(move.src()), move.src());
 	}
 
 	[[nodiscard]] inline auto popLeastValuable(const BitboardSet &bbs,
@@ -99,76 +198,13 @@ namespace stormphrax::see
 		return PieceType::None;
 	}
 
-	// basically ported from ethereal and weiss (their implementation is the same)
+	// Adapted from MV-SF https://github.com/ddugovic/Stockfish/blob/eb4c78813370ebaea84724aed9f0b59d5ff3e2f2/src/position.cpp#L2235
+	// All credits to https://github.com/ddugovic and https://github.com/ianfab/ and all the Multivariant-Stockfish contributors
+	// Also adapted from https://github.com/fairy-stockfish/Fairy-Stockfish/blob/50adcffd957aaa2b4729409518549fc3107b9c33/src/position.cpp#L2367
+	// All credits to https://github.com/ianfab/
+	// For the code
 	inline auto see(const Position &pos, Move move, Score threshold)
 	{
-		const auto &boards = pos.boards();
-		const auto &bbs = boards.bbs();
-
-		const auto color = pos.toMove();
-
-		auto score = gain(boards, move) - threshold;
-
-		if (score < 0)
-			return false;
-
-		auto next = move.type() == MoveType::Promotion
-			? move.promo()
-			: pieceType(boards.pieceAt(move.src()));
-
-		score -= value(next);
-
-		if (score >= 0)
-			return true;
-
-		const auto square = move.dst();
-
-		auto occupancy = bbs.occupancy()
-			^ squareBit(move.src())
-			^ squareBit(square);
-
-		const auto queens = bbs.queens();
-
-		const auto bishops = queens | bbs.bishops();
-		const auto rooks = queens | bbs.rooks();
-
-		auto attackers = pos.allAttackersTo(square, occupancy);
-
-		auto us = oppColor(color);
-
-		while (true)
-		{
-			const auto ourAttackers = attackers & bbs.forColor(us);
-
-			if (ourAttackers.empty())
-				break;
-
-			next = popLeastValuable(bbs, occupancy, ourAttackers, us);
-
-			if (next == PieceType::Pawn
-				|| next == PieceType::Bishop
-				|| next == PieceType::Queen)
-				attackers |= attacks::getBishopAttacks(square, occupancy) & bishops;
-
-			if (next == PieceType::Rook
-				|| next == PieceType::Queen)
-				attackers |= attacks::getRookAttacks(square, occupancy) & rooks;
-
-			attackers &= occupancy;
-
-			score = -score - 1 - value(next);
-			us = oppColor(us);
-
-			if (score >= 0)
-			{
-				// our only attacker is our king, but the opponent still has defenders
-				if (next == PieceType::King
-					&& !(attackers & bbs.forColor(us)).empty())
-					us = oppColor(us);
-				break;
-			}
-		}
-
-		return color != us;
+		return gain_atomic(pos,move) >= threshold;
 	}
 }

@@ -430,6 +430,15 @@ namespace stormphrax::search
 			alpha = std::max(alpha, -ScoreMate + ply);
 			beta  = std::min( beta,  ScoreMate - ply - 1);
 
+			if (pos.isVariantOver()) {
+				if (pos.isAtomicWin()) {
+					return (ScoreMate - ply);
+				}
+				else if (pos.isAtomicLoss()) {
+					return (-ScoreMate + ply);
+				}
+			}
+
 			if (alpha >= beta)
 				return alpha;
 
@@ -891,6 +900,16 @@ namespace stormphrax::search
 		}
 
 		if (legalMoves == 0)
+		{
+			if (pos.isVariantOver()) {
+				if (pos.isAtomicWin()) {
+					return (ScoreMate - ply);
+				}
+				else if (pos.isAtomicLoss()) {
+					return (-ScoreMate + ply);
+				}
+			}
+
 			return inCheck ? (-ScoreMate + ply) : 0;
 
 		if (bestMove)
@@ -944,6 +963,15 @@ namespace stormphrax::search
 			return 0;
 
 		auto &pos = thread.pos;
+
+		if (pos.isVariantOver()) {
+			if (pos.isAtomicWin()) {
+				return (ScoreMate - ply);
+			}
+			else if (pos.isAtomicLoss()) {
+				return (-ScoreMate + ply);
+			}
+		}
 
 		if (alpha < 0 && pos.hasCycle(ply))
 		{
@@ -1010,7 +1038,14 @@ namespace stormphrax::search
 		{
 			if (!pos.isLegal(move))
 				continue;
-
+			//taken from Multi-Variant too
+			/*auto futilityaltered = futility + see::gain_atomic(pos, move.move);
+	
+			if (!pos.isCheck() && (futilityaltered <= alpha)) {
+					bestScore = std::max(bestScore, futilityaltered);
+					continue;
+				}
+			*/
 			if (!pos.isCheck()
 				&& futility <= alpha
 				&& !see::see(pos, move, 1))

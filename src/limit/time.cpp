@@ -63,6 +63,7 @@ namespace stormphrax::limit
 		if (toGo == 0)
 			toGo = defaultMovesToGo();
 
+		//toGo = std::min(toGo, 29);
 		const auto baseTime = limit / static_cast<f64>(toGo) + increment * incScale;
 
 		m_maxTime  = limit * hardScale;

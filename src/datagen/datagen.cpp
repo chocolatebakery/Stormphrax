@@ -79,8 +79,8 @@ namespace stormphrax::datagen
 			{
 				if (data.nodes >= m_hardNodeLimit)
 				{
-					std::cout << "thread " << m_threadId << ": stopping search after "
-						<< data.nodes << " nodes (limit: " << m_hardNodeLimit << ")" << std::endl;
+					//std::cout << "thread " << m_threadId << ": stopping search after "
+						//<< data.nodes << " nodes (limit: " << m_hardNodeLimit << ")" << std::endl;
 					return true;
 				}
 
@@ -103,21 +103,38 @@ namespace stormphrax::datagen
 				m_hardNodeLimit = nodes;
 			}
 
+			inline auto setDepthLimit(i32 depth)
+			{
+				m_custDepthLimit = depth;
+			}
+
+			
+			inline auto setDepthMaxLimit(i32 depth)
+			{
+				m_custDepthMaxLimit = depth;
+			}
+
 		private:
 			u32 m_threadId;
 			usize m_softNodeLimit{};
 			usize m_hardNodeLimit{};
+			i32 m_custDepthLimit{};
+			i32 m_custDepthMaxLimit{};
 		};
 
-		constexpr usize VerificationHardNodeLimit = 25165814;
+		constexpr usize VerificationHardNodeLimit = 122000;
 
 		constexpr usize DatagenSoftNodeLimit = 5000;
-		constexpr usize DatagenHardNodeLimit = 8388608;
+		constexpr usize DatagenHardNodeLimit = 61000;
+
 
 		constexpr Score VerificationScoreLimit = 1000;
 
 		constexpr Score WinAdjMinScore = 2500;
 		constexpr Score DrawAdjMaxScore = 10;
+
+		constexpr u16 depthLimit = 5;
+		constexpr u16 depthMaxLimit = 6;
 
 		constexpr u32 WinAdjMaxPlies = 5;
 		constexpr u32 DrawAdjMaxPlies = 10;
@@ -208,9 +225,11 @@ namespace stormphrax::datagen
 				thread->pos.clearStateHistory();
 				thread->nnueState.reset(thread->pos.bbs(), thread->pos.blackKing(), thread->pos.whiteKing());
 
-				thread->maxDepth = 10;
+				thread->maxDepth = 10; //Max depth 10
 				limiter.setSoftNodeLimit(std::numeric_limits<usize>::max());
 				limiter.setHardNodeLimit(VerificationHardNodeLimit);
+				limiter.setDepthLimit(8);
+				limiter.setDepthMaxLimit(12);
 
 				const auto [firstScore, normFirstScore] = searcher.runDatagenSearch(*thread);
 
@@ -241,7 +260,12 @@ namespace stormphrax::datagen
 
 					if (!move)
 					{
-						if (thread->pos.isCheck())
+						if (thread->pos.isVariantOver()) {
+							outcome = thread->pos.toMove() == Color::Black
+								? Outcome::WhiteWin
+								: Outcome::WhiteLoss;
+						}
+						else if (thread->pos.isCheck())
 							outcome = thread->pos.toMove() == Color::Black
 								? Outcome::WhiteWin
 								: Outcome::WhiteLoss;
@@ -289,7 +313,8 @@ namespace stormphrax::datagen
 							outcome = Outcome::Draw;
 					}
 
-					const bool filtered = thread->pos.isCheck() || thread->pos.isNoisy(move);
+					//const bool filtered = thread->pos.isCheck() || thread->pos.isNoisy(move) || thread->pos.isAtomicLoss() || thread->pos.isAtomicWin();
+					const bool filtered = thread->pos.isVariantOver(); //Filtering No King Positions
 
 					thread->pos.applyMoveUnchecked<true, false>(move, &thread->nnueState);
 
