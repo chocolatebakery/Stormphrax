@@ -334,34 +334,40 @@ namespace stormphrax
 			}
 
 			if (captured != Piece::None) {
+				auto fromTo = Bitboard::fromSquare(move.move.dst()) | Bitboard::fromSquare(move.move.src());
 				if (move.move.type() == MoveType::EnPassant) {
 					move.score += Mvv[static_cast<i32>(colorPiece(PieceType::Pawn, m_pos.opponent()))];
+					fromTo = Bitboard::fromSquare(move.move.src());
 				}
 				auto them = m_pos.opponent();
 				auto us = oppColor(them);
-				auto fromTo = Bitboard::fromSquare(move.move.dst()) | Bitboard::fromSquare(move.move.src());
+				auto ourPieces = boards.bbs().forColor(us);
+				auto theirPieces = boards.bbs().forColor(them);
 				auto boom = ((attacks::getKingAttacks(move.move.dst()) & ~(boards.bbs().pawns())) | fromTo);
-				while(boom) {
+				auto boomUs = boom & ourPieces;
+				auto boomThem = boom & theirPieces;
+				if (boom & boards.bbs().kings(us)) {
+					move.score -= ScoreMate;
+					goto mateJump;
+				}
+				if (boom & boards.bbs().kings(them)) {
+					move.score += ScoreMate;
+					goto mateJump;
+				}
+				while(boomUs) {
 					auto boomsq = static_cast<Square>(util::ctz(boom));
-					boom &= boom - 1;
+					boomUs &= boomUs - 1;
 					auto piece_boom = boards.pieceAt(boomsq);
-					if (pieceType(piece_boom) == PieceType::King && pieceColor(piece_boom) == them) {
-						move.score += ScoreMate;
-					}
-					if (pieceType(piece_boom) == PieceType::King && pieceColor(piece_boom) == us) {
-						move.score -= ScoreMate;
-					}
-					else if ((piece_boom != Piece::None)) {
-						if (pieceColor(piece_boom) == us) {
-							move.score -= Mvv[static_cast<i32>(pieceType(piece_boom))];
-						}
-						else {
-							move.score += Mvv[static_cast<i32>(pieceType(piece_boom))];
-						}
-					}
+					move.score -= Mvv[static_cast<i32>(pieceType(piece_boom))];
+				}
+				while(boomThem) {
+					auto boomsq = static_cast<Square>(util::ctz(boom));
+					boomThem &= boomThem - 1;
+					auto piece_boom = boards.pieceAt(boomsq);
+					move.score += Mvv[static_cast<i32>(pieceType(piece_boom))];
 				}
 			}
-
+			mateJump:
 			if ((captured != Piece::None || move.move.promo() == PieceType::Queen)
 				&& see::see(m_pos, move.move))
 				move.score += GoodNoisyBonus;

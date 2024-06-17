@@ -31,7 +31,7 @@ namespace stormphrax
 		struct GlobalOptions
 		{
 			bool chess960{false};
-			bool showWdl{true};
+			bool showWdl{false};
 
 			bool syzygyEnabled{false};
 			i32 syzygyProbeDepth{1};

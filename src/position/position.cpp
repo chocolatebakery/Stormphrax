@@ -854,6 +854,10 @@ namespace stormphrax
 	{
 		assert(move != NullMove);
 
+		if (isVariantOver()) {
+			return false;
+		}
+
 		const auto &state = currState();
 
 		const auto us = toMove();
@@ -861,9 +865,6 @@ namespace stormphrax
 		const auto src = move.src();
 		const auto srcPiece = state.boards.pieceAt(src);
 
-		if (isVariantOver()) {
-			return false;
-		}
 		if (srcPiece == Piece::None || pieceColor(srcPiece) != us)
 			return false;
 
@@ -1038,6 +1039,10 @@ namespace stormphrax
 	{
 		assert(move != NullMove);
 
+		if (isVariantOver()) {
+			return false;
+		}
+
 		const auto us = toMove();
 		const auto them = oppColor(us);
 
@@ -1052,10 +1057,6 @@ namespace stormphrax
 		auto ourKing = state.boards.bbs().kings(us); //Location of our King
 		const auto checker = state.checkers.lowestSquare(); // location of checkers
 		const auto theirs = bbs.forColor(them);
-
-		if (isVariantOver()) {
-			return false;
-		}
 
 		//handle captures
 		if ((state.boards.pieceAt(dst) != Piece::None) && (move.type() != MoveType::Castling)) {
