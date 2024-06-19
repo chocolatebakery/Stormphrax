@@ -122,10 +122,10 @@ namespace stormphrax::datagen
 			i32 m_custDepthMaxLimit{};
 		};
 
-		constexpr usize VerificationHardNodeLimit = 122000;
+		constexpr usize VerificationHardNodeLimit = 244000;
 
 		constexpr usize DatagenSoftNodeLimit = 5000;
-		constexpr usize DatagenHardNodeLimit = 61000;
+		constexpr usize DatagenHardNodeLimit = 122000;
 
 
 		constexpr Score VerificationScoreLimit = 1000;
