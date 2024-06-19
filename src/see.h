@@ -167,13 +167,13 @@ namespace stormphrax::see
 					goto mateJump;
 				}
 				while(boomUs) {
-					auto boomsq = static_cast<Square>(util::ctz(boom));
+					auto boomsq = static_cast<Square>(util::ctz(boomUs));
 					boomUs &= boomUs - 1;
 					auto piece_boom = boards.pieceAt(boomsq);
 					result -= value(piece_boom);
 				}
 				while(boomThem) {
-					auto boomsq = static_cast<Square>(util::ctz(boom));
+					auto boomsq = static_cast<Square>(util::ctz(boomThem));
 					boomThem &= boomThem - 1;
 					auto piece_boom = boards.pieceAt(boomsq);
 					result += value(piece_boom);
