@@ -470,6 +470,9 @@ namespace stormphrax
 				pawnDstMask |= epMask;
 			
 			auto boom_radius = (attacks::getKingAttacks(pos.checkers().lowestSquare())) & theirs;
+			if (pos.bbs().pawns() & pos.checkers()) {
+				boom_radius = Bitboard{};
+			}
 			auto their_king_radius = (attacks::getKingAttacks(pos.king(them))) & theirs;
 			dstMask |= boom_radius;
 			dstMask |= their_king_radius; // Can explode the checking piece or blow the opposite King while in check

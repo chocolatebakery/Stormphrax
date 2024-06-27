@@ -70,45 +70,46 @@ namespace stormphrax::see
 	// For the code
 	inline auto gain(const PositionBoards &boards, Move move) {
 		const auto &bbs = boards.bbs();
-		auto from = move.src();
+		
 		auto us = pieceColor(boards.pieceAt(move.src()));
-		auto fromTo = Bitboard::fromSquare(move.dst()) | Bitboard::fromSquare(move.src());	
+		auto them = oppColor(us);
+
+		auto score = 0;
+		auto fromTo = Bitboard::fromSquare(move.dst()) | Bitboard::fromSquare(move.src());
+
+		if (move.type() == MoveType::EnPassant) {
+			fromTo = Bitboard::fromSquare(move.src());
+			score += value(colorPiece(PieceType::Pawn, them));
+		}
+
 		auto boom = ((attacks::getKingAttacks(move.dst()) & ~(bbs.pawns())) | fromTo);
 
-		if (boom & bbs.kings(oppColor(us))) {
-			return ScoreMate;
-		}
+		auto ourPieces = bbs.occupancy(us);
+		auto theirPieces = bbs.occupancy(them);
+
+		auto boomUs = boom & ourPieces;
+		auto boomThem = boom & theirPieces;
+			
+
 		if ((boom & bbs.kings(us))) {
 			return -ScoreMate;
 		}
-
-		auto score = 0;
-
-		/*if (pieceColor(nextVictim) == us) {
-			score -= value(nextVictim);
-		}
-		else {
-			score += value(nextVictim);
+		if (boom & bbs.kings(them)) {
+			return ScoreMate;
 		}
 
-		if (pieceColor(boards.pieceAt(move.dst())) == us) {
-			score -= value(boards.pieceAt(move.dst()));
+		while(boomUs) {
+			auto boomsq = static_cast<Square>(util::ctz(boomUs));
+			boomUs &= boomUs - 1;
+			auto piece_boom = boards.pieceAt(boomsq);
+			score -= value(piece_boom);
 		}
-		else {
-			score += value(boards.pieceAt(move.dst()));
-		}*/
-
-		while (boom) {
-			auto boom_sq = static_cast<Square>(util::ctz(boom));
-			boom &= boom - 1;
-			if (pieceColor(boards.pieceAt(boom_sq)) == us) {
-				score -= value(boards.pieceAt(boom_sq));
-			}
-			else {
-				score += value(boards.pieceAt(boom_sq));
-			}
+		while(boomThem) {
+			auto boomsq = static_cast<Square>(util::ctz(boomThem));
+			boomThem &= boomThem - 1;
+			auto piece_boom = boards.pieceAt(boomsq);
+			score += value(piece_boom);
 		}
-
 		return score;
 	}
 
@@ -119,12 +120,28 @@ namespace stormphrax::see
 
 		auto victim = boards.pieceAt(move.src());
 		auto stm = pieceColor(victim);
-		auto stmKing = bbs.occupancy(stm) & bbs.forPiece(PieceType::King);
-		auto boom = ((attacks::getKingAttacks(move.dst()) & ~(bbs.pawns()) | (Bitboard::fromSquare(move.dst()) | Bitboard::fromSquare(move.src())) & bbs.occupancy()));
+		auto them = oppColor(stm);
+
+		auto fromTo = (Bitboard::fromSquare(move.dst()) | Bitboard::fromSquare(move.src()));
+		auto captured = boards.pieceAt(move.dst());
+		if (move.type() == MoveType::EnPassant) {
+			fromTo = Bitboard::fromSquare(move.src());
+			captured = colorPiece(PieceType::Pawn, them);
+		}
+		auto castle = move.type() == MoveType::Castling;
 
 		auto result = 0;
-		if (boards.pieceAt(move.dst()) == Piece::None || move.type() == MoveType::Castling) {
-			auto occupied = bbs.occupancy() ^ ((Bitboard::fromSquare(move.src())) | (Bitboard::fromSquare(move.dst())));
+		if (captured == Piece::None || castle) {
+
+			auto ourPieces = bbs.occupancy(stm);
+			auto theirPieces = bbs.occupancy(oppColor(stm));
+			auto stmKing = bbs.occupancy(stm) & bbs.forPiece(PieceType::King);
+			auto boom = ((attacks::getKingAttacks(move.dst()) & ~(bbs.pawns()) | fromTo & bbs.occupancy()));
+			auto boomUs = boom & ourPieces;
+			auto boomThem = boom & theirPieces;
+			
+
+			auto occupied = bbs.occupancy() ^ fromTo;
 			auto attackers = pos.attackersToPos(move.dst(), occupied, oppColor(stm));
       		auto minAttacker = ScoreMaxMate;
 
@@ -141,36 +158,35 @@ namespace stormphrax::see
 				result += minAttacker; 
 			}
 
-		while (boom)
-  		{
-			auto boom_sq = static_cast<Square>(util::ctz(boom));
-			boom &= boom - 1;
-      		if (pieceType(boards.pieceAt(boom_sq)) == PieceType::King) {
-
-					if (pieceColor(boards.pieceAt(boom_sq)) == stm) {
-						return -ScoreMate;
-					}
-					else if (pieceColor(boards.pieceAt(boom_sq)) == oppColor(stm)) {
-						return ScoreMate;
-					}
-
-			}
-			else if (pieceColor(boards.pieceAt(boom_sq)) == stm) {
-				result -= value(boards.pieceAt(boom_sq));
-			}
-			else {
-				result += value(boards.pieceAt(boom_sq));
-			}
- 		 }
-
+				if (boom & bbs.kings(stm)) {
+					result -= ScoreMate;
+					goto mateJump;
+				}
+				if (boom & bbs.kings(them)) {
+					result += ScoreMate;
+					goto mateJump;
+				}
+				while(boomUs) {
+					auto boomsq = static_cast<Square>(util::ctz(boomUs));
+					boomUs &= boomUs - 1;
+					auto piece_boom = boards.pieceAt(boomsq);
+					result -= value(piece_boom);
+				}
+				while(boomThem) {
+					auto boomsq = static_cast<Square>(util::ctz(boomThem));
+					boomThem &= boomThem - 1;
+					auto piece_boom = boards.pieceAt(boomsq);
+					result += value(piece_boom);
+				}
 		}
 
-		if (boards.pieceAt(move.dst()) != Piece::None && move.type() != MoveType::Castling)
+		if (captured != Piece::None && !castle)
 		{
 			result += gain(boards,move);
 			return (result - 1);
 		}
 		
+		mateJump:
 		return std::min(result,0);
 	}
 	
@@ -203,7 +219,8 @@ namespace stormphrax::see
 	// Also adapted from https://github.com/fairy-stockfish/Fairy-Stockfish/blob/50adcffd957aaa2b4729409518549fc3107b9c33/src/position.cpp#L2367
 	// All credits to https://github.com/ianfab/
 	// For the code
-	inline auto see(const Position &pos, Move move, Score threshold)
+
+	inline auto see(const Position &pos, Move move, Score threshold = 0)
 	{
 		return gain_atomic(pos,move) >= threshold;
 	}
