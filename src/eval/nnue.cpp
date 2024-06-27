@@ -49,6 +49,7 @@ namespace stormphrax::eval
 		SP_ENUM_FLAGS(u16, NetworkFlags)
 		{
 			None = 0x0000,
+			HorizontallyMirrored = 0x0002,
 		};
 
 		constexpr u16 ExpectedHeaderVersion = 1;
@@ -117,6 +118,15 @@ namespace stormphrax::eval
 				return false;
 			}
 
+			if (testFlags(header.flags, NetworkFlags::HorizontallyMirrored) != InputFeatureSet::IsMirrored)
+			{
+				if constexpr (InputFeatureSet::IsMirrored)
+					std::cerr << "unmirrored network, expected horizontally mirrored" << std::endl;
+				else std::cerr << "horizontally mirrored network, expected unmirrored" << std::endl;
+
+				return false;
+			}
+
 			if (header.activation != L1Activation::Id)
 			{
 				std::cerr << "wrong network l1 activation function (" << activationFuncName(header.activation)
@@ -124,10 +134,10 @@ namespace stormphrax::eval
 				return false;
 			}
 
-			if (header.hiddenSize != Layer1Size)
+			if (header.hiddenSize != L1Size)
 			{
 				std::cerr << "wrong number of hidden neurons (" << header.hiddenSize
-					<< ", expected: " << Layer1Size << ")" << std::endl;
+					<< ", expected: " << L1Size << ")" << std::endl;
 				return false;
 			}
 

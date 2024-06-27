@@ -42,6 +42,7 @@
 #include "movepick.h"
 #include "util/barrier.h"
 #include "history.h"
+#include "correction.h"
 
 namespace stormphrax::search
 {
@@ -130,20 +131,14 @@ namespace stormphrax::search
 		std::vector<MoveStackEntry> moveStack{};
 		std::vector<ContinuationSubtable *> conthist{};
 
-		MoveList rootMoves{};
-
 		HistoryTables history{};
+		CorrectionHistoryTable correctionHistory{};
 
 		Position pos{};
 
 		[[nodiscard]] inline auto isMainThread() const
 		{
 			return id == 0;
-		}
-
-		[[nodiscard]] inline auto isLegalRootMove(Move move) const
-		{
-			return std::ranges::find(rootMoves, move) != rootMoves.end();
 		}
 
 		inline auto setNullmove(i32 ply)
@@ -181,7 +176,8 @@ namespace stormphrax::search
 			m_limiter = std::move(limiter);
 		}
 
-		auto startSearch(const Position &pos, i32 maxDepth, std::unique_ptr<limit::ISearchLimiter> limiter) -> void;
+		auto startSearch(const Position &pos, i32 maxDepth,
+			std::unique_ptr<limit::ISearchLimiter> limiter, bool infinite) -> void;
 		auto stop() -> void;
 
 		// -> [move, unnormalised, normalised]
@@ -221,6 +217,8 @@ namespace stormphrax::search
 		std::atomic_bool m_quit{};
 		std::atomic_bool m_searching{};
 
+		std::atomic<f64> m_startTime{};
+
 		util::Barrier m_resetBarrier{2};
 		util::Barrier m_idleBarrier{2};
 
@@ -233,11 +231,23 @@ namespace stormphrax::search
 		std::atomic_int m_runningThreads{};
 
 		std::unique_ptr<limit::ISearchLimiter> m_limiter{};
+		bool m_infinite{};
+
+		MoveList m_rootMoves{};
 
 		Score m_minRootScore{};
 		Score m_maxRootScore{};
 
 		eval::Contempt m_contempt{};
+
+		enum class RootStatus
+		{
+			NoLegalMoves = 0,
+			Tablebase,
+			Generated,
+		};
+
+		auto initRootMoves(const Position &pos) -> RootStatus;
 
 		auto stopThreads() -> void;
 
@@ -270,6 +280,16 @@ namespace stormphrax::search
 		[[nodiscard]] inline auto checkSoftTimeout(const SearchData &data, bool mainThread)
 		{
 			return checkStop(data, mainThread, true);
+		}
+
+		[[nodiscard]] inline auto elapsed() const
+		{
+			return util::g_timer.time() - m_startTime.load(std::memory_order::relaxed);
+		}
+
+		[[nodiscard]] inline auto isLegalRootMove(Move move) const
+		{
+			return std::ranges::find(m_rootMoves, move) != m_rootMoves.end();
 		}
 
 		auto searchRoot(ThreadData &thread, bool actualSearch) -> Score;

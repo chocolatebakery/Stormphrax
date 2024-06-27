@@ -39,6 +39,7 @@
 #include "ttable.h"
 #include "limit/trivial.h"
 #include "limit/time.h"
+#include "limit/compound.h"
 #include "perft.h"
 #include "bench.h"
 #include "opts.h"
@@ -191,6 +192,8 @@ namespace stormphrax
 #endif
 			std::cout << "id author " << Author << '\n';
 
+			std::cout << std::boolalpha;
+
 			std::cout << "option name Hash type spin default " << DefaultTtSize
 			          << " min " << TtSizeRange.min() << " max " << TtSizeRange.max() << '\n';
 			std::cout << "option name Clear Hash type button\n";
@@ -198,14 +201,13 @@ namespace stormphrax
 				<< " min " << search::ThreadCountRange.min() << " max " << search::ThreadCountRange.max() << '\n';
 			std::cout << "option name Contempt type spin default " << opts::DefaultNormalizedContempt
 				<< " min " << ContemptRange.min() << " max " << ContemptRange.max() << '\n';
-			std::cout << "option name UCI_Chess960 type check default "
-				<< (defaultOpts.chess960 ? "true" : "false") << '\n';
-			//Doesn't do anything, just the options to be detected by cutechess or winboard
-			std::cout << "option name UCI_Variant type combo default chess var chess var atomic" << '\n'; //Just to accept atomic	
-			std::cout << "option name UCI_ShowWDL type check default "
-				<< (defaultOpts.showWdl ? "true" : "false") << '\n';
+			std::cout << "option name UCI_Chess960 type check default " << defaultOpts.chess960 << '\n';
+			std::cout << "option name UCI_ShowWDL type check default " << defaultOpts.showWdl << '\n';
+			std::cout << "option name ShowCurrMove type check default " << defaultOpts.showCurrMove << '\n';
+			std::cout << "option name UCI_Variant type combo default atomic var atomic" << '\n'; //Just to accept atomic	
 			std::cout << "option name Move Overhead type spin default " << limit::DefaultMoveOverhead
 				<< " min " << limit::MoveOverheadRange.min() << " max " << limit::MoveOverheadRange.max() << '\n';
+			std::cout << "option name EnableWeirdTCs type check default " << defaultOpts.enableWeirdTcs << std::endl;
 			std::cout << "option name SyzygyPath type string default <empty>\n";
 			std::cout << "option name SyzygyProbeDepth type spin default " << defaultOpts.syzygyProbeDepth
 				<< " min " << search::SyzygyProbeDepthRange.min()
@@ -312,8 +314,9 @@ namespace stormphrax
 			else
 			{
 				u32 depth = MaxDepth;
-				std::unique_ptr<limit::ISearchLimiter> limiter{};
+				auto limiter = std::make_unique<limit::CompoundLimiter>();
 
+				bool infinite = false;
 				bool tournamentTime = false;
 
 				const auto startTime = util::g_timer.time();
@@ -328,109 +331,72 @@ namespace stormphrax
 					{
 						if (!util::tryParseU32(depth, tokens[i]))
 							std::cerr << "invalid depth " << tokens[i] << std::endl;
+						continue;
 					}
-					else if (!tournamentTime && !limiter)
+
+					if (tokens[i] == "infinite")
 					{
-						if (tokens[i] == "infinite")
-							limiter = std::make_unique<limit::InfiniteLimiter>();
-						else if (tokens[i] == "nodes" && ++i < tokens.size())
-						{
-							usize nodes{};
-							if (!util::tryParseSize(nodes, tokens[i]))
-								std::cerr << "invalid node count " << tokens[i] << std::endl;
-							else
-								limiter = std::make_unique<limit::NodeLimiter>(nodes);
-						}
-						else if (tokens[i] == "movetime" && ++i < tokens.size())
-						{
-							i64 time{};
-							if (!util::tryParseI64(time, tokens[i]))
-								std::cerr << "invalid time " << tokens[i] << std::endl;
-							else
-							{
-								time = std::max<i64>(time, 1);
-								limiter = std::make_unique<limit::MoveTimeLimiter>(time, m_moveOverhead);
-							}
-						}
-						else if ((tokens[i] == "btime" || tokens[i] == "wtime") && ++i < tokens.size()
-							&& tokens[i - 1] == (m_pos.toMove() == Color::Black ? "btime" : "wtime"))
-						{
-							tournamentTime = true;
+						infinite = true;
+						continue;
+					}
 
-							i64 time{};
-							if (!util::tryParseI64(time, tokens[i]))
-								std::cerr << "invalid time " << tokens[i] << std::endl;
-							else
-							{
-								time = std::max<i64>(time, 1);
-								timeRemaining = static_cast<i64>(time);
-							}
-						}
-						else if ((tokens[i] == "binc" || tokens[i] == "winc") && ++i < tokens.size()
-							&& tokens[i - 1] == (m_pos.toMove() == Color::Black ? "binc" : "winc"))
+					if (tokens[i] == "nodes" && ++i < tokens.size())
+					{
+						usize nodes{};
+						if (!util::tryParseSize(nodes, tokens[i]))
+							std::cerr << "invalid node count " << tokens[i] << std::endl;
+						else limiter->addLimiter<limit::NodeLimiter>(nodes);
+					}
+					else if (tokens[i] == "movetime" && ++i < tokens.size())
+					{
+						i64 time{};
+						if (!util::tryParseI64(time, tokens[i]))
+							std::cerr << "invalid time " << tokens[i] << std::endl;
+						else
 						{
-							tournamentTime = true;
-
-							i64 time{};
-							if (!util::tryParseI64(time, tokens[i]))
-								std::cerr << "invalid time " << tokens[i] << std::endl;
-							else
-							{
-								time = std::max<i64>(time, 1);
-								increment = static_cast<i64>(time);
-							}
-						}
-						else if (tokens[i] == "movestogo" && ++i < tokens.size())
-						{
-							tournamentTime = true;
-
-							u32 moves{};
-							if (!util::tryParseU32(moves, tokens[i]))
-								std::cerr << "invalid movestogo " << tokens[i] << std::endl;
-							else
-							{
-								moves = std::min<u32>(moves, static_cast<u32>(std::numeric_limits<i32>::max()));
-								toGo = static_cast<i32>(moves);
-							}
+							time = std::max<i64>(time, 1);
+							limiter->addLimiter<limit::MoveTimeLimiter>(time, m_moveOverhead);
 						}
 					}
-					// yeah I hate the duplication too
-					else if (tournamentTime)
+					else if ((tokens[i] == "btime" || tokens[i] == "wtime") && ++i < tokens.size()
+						&& tokens[i - 1] == (m_pos.toMove() == Color::Black ? "btime" : "wtime"))
 					{
-						if ((tokens[i] == "btime" || tokens[i] == "wtime") && ++i < tokens.size()
-							&& tokens[i - 1] == (m_pos.toMove() == Color::Black ? "btime" : "wtime"))
+						tournamentTime = true;
+
+						i64 time{};
+						if (!util::tryParseI64(time, tokens[i]))
+							std::cerr << "invalid time " << tokens[i] << std::endl;
+						else
 						{
-							i64 time{};
-							if (!util::tryParseI64(time, tokens[i]))
-								std::cerr << "invalid time " << tokens[i] << std::endl;
-							else
-							{
-								time = std::max<i64>(time, 1);
-								timeRemaining = static_cast<i64>(time);
-							}
+							time = std::max<i64>(time, 1);
+							timeRemaining = static_cast<i64>(time);
 						}
-						else if ((tokens[i] == "binc" || tokens[i] == "winc") && ++i < tokens.size()
-							&& tokens[i - 1] == (m_pos.toMove() == Color::Black ? "binc" : "winc"))
+					}
+					else if ((tokens[i] == "binc" || tokens[i] == "winc") && ++i < tokens.size()
+						&& tokens[i - 1] == (m_pos.toMove() == Color::Black ? "binc" : "winc"))
+					{
+						tournamentTime = true;
+
+						i64 time{};
+						if (!util::tryParseI64(time, tokens[i]))
+							std::cerr << "invalid time " << tokens[i] << std::endl;
+						else
 						{
-							i64 time{};
-							if (!util::tryParseI64(time, tokens[i]))
-								std::cerr << "invalid time " << tokens[i] << std::endl;
-							else
-							{
-								time = std::max<i64>(time, 1);
-								increment = static_cast<i64>(time);
-							}
+							time = std::max<i64>(time, 1);
+							increment = static_cast<i64>(time);
 						}
-						else if (tokens[i] == "movestogo" && ++i < tokens.size())
+					}
+					else if (tokens[i] == "movestogo" && ++i < tokens.size())
+					{
+						tournamentTime = true;
+
+						u32 moves{};
+						if (!util::tryParseU32(moves, tokens[i]))
+							std::cerr << "invalid movestogo " << tokens[i] << std::endl;
+						else
 						{
-							u32 moves{};
-							if (!util::tryParseU32(moves, tokens[i]))
-								std::cerr << "invalid movestogo " << tokens[i] << std::endl;
-							else
-							{
-								moves = std::min<u32>(moves, static_cast<u32>(std::numeric_limits<i32>::max()));
-								toGo = static_cast<i32>(moves);
-							}
+							moves = std::min<u32>(moves, static_cast<u32>(std::numeric_limits<i32>::max()));
+							toGo = static_cast<i32>(moves);
 						}
 					}
 				}
@@ -440,15 +406,47 @@ namespace stormphrax
 				else if (depth > MaxDepth)
 					depth = MaxDepth;
 
+				if (tournamentTime)
+				{
+					if (toGo != 0)
+					{
+						if (g_opts.enableWeirdTcs)
+							std::cout
+								<< "info string Warning: Stormphrax does not officially"
+									" support cyclic (movestogo) time controls" << std::endl;
+						else
+						{
+							std::cout
+								<< "info string Cyclic (movestogo) time controls"
+								   " not enabled, see the EnableWeirdTCs option" << std::endl;
+							std::cout << "bestmove 0000" << std::endl;
+							return;
+						}
+					}
+					else if (increment == 0)
+					{
+						if (g_opts.enableWeirdTcs)
+							std::cout
+								<< "info string Warning: Stormphrax does not officially"
+								   " support sudden death (0 increment) time controls" << std::endl;
+						else
+						{
+							std::cout
+								<< "info string Sudden death (0 increment) time controls"
+								   " not enabled, see the EnableWeirdTCs option" << std::endl;
+							std::cout << "bestmove 0000" << std::endl;
+							return;
+						}
+					}
+				}
+
 				if (tournamentTime && timeRemaining > 0)
-					limiter = std::make_unique<limit::TimeManager>(startTime,
+					limiter->addLimiter<limit::TimeManager>(startTime,
 						static_cast<f64>(timeRemaining) / 1000.0,
 						static_cast<f64>(increment) / 1000.0,
 						toGo, static_cast<f64>(m_moveOverhead) / 1000.0);
-				else if (!limiter)
-					limiter = std::make_unique<limit::InfiniteLimiter>();
 
-				m_searcher.startSearch(m_pos, static_cast<i32>(depth), std::move(limiter));
+				m_searcher.startSearch(m_pos, static_cast<i32>(depth), std::move(limiter), infinite);
 			}
 		}
 
@@ -556,12 +554,28 @@ namespace stormphrax
 							opts::mutableOpts().showWdl = *newShowWdl;
 					}
 				}
+				else if (nameStr == "showcurrmove")
+				{
+					if (!valueEmpty)
+					{
+						if (const auto newShowCurrMove = util::tryParseBool(valueStr))
+							opts::mutableOpts().showCurrMove = *newShowCurrMove;
+					}
+				}
 				else if (nameStr == "move overhead")
 				{
 					if (!valueEmpty)
 					{
 						if (const auto newMoveOverhead = util::tryParseI32(valueStr))
 							m_moveOverhead = limit::MoveOverheadRange.clamp(*newMoveOverhead);
+					}
+				}
+				else if (nameStr == "enableweirdtcs")
+				{
+					if (!valueEmpty)
+					{
+						if (const auto newEnableWeirdTcs = util::tryParseBool(valueStr))
+							opts::mutableOpts().enableWeirdTcs = *newEnableWeirdTcs;
 					}
 				}
 				else if (nameStr == "syzygypath")
@@ -637,6 +651,10 @@ namespace stormphrax
 			std::ostringstream key{};
 			key << std::hex << std::setw(16) << std::setfill('0') << m_pos.key();
 			std::cout << "Key: " << key.str() << std::endl;
+
+			std::ostringstream pawnKey{};
+			pawnKey << std::hex << std::setw(16) << std::setfill('0') << m_pos.pawnKey();
+			std::cout << "Pawn key: " << pawnKey.str() << std::endl;
 
 			std::cout << "Checkers:";
 

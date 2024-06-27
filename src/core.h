@@ -218,10 +218,16 @@ namespace stormphrax
 		return static_cast<i32>(square) & 0x7;
 	}
 
-	[[nodiscard]] constexpr auto flipSquare(Square square)
+	[[nodiscard]] constexpr auto flipSquareRank(Square square)
 	{
 		assert(square != Square::None);
-		return static_cast<Square>(static_cast<i32>(square) ^ 0x38);
+		return static_cast<Square>(static_cast<i32>(square) ^ 0b111000);
+	}
+
+	[[nodiscard]] constexpr auto flipSquareFile(Square square)
+	{
+		assert(square != Square::None);
+		return static_cast<Square>(static_cast<i32>(square) ^ 0b000111);
 	}
 
 	[[nodiscard]] constexpr auto squareBit(Square square)
@@ -253,6 +259,52 @@ namespace stormphrax
 		assert(rank >= 0 && rank < 8);
 		return c == Color::Black ? 7 - rank : rank;
 	}
+
+	struct KingPair
+	{
+		std::array<Square, 2> kings{};
+
+		[[nodiscard]] inline auto black() const
+		{
+			return kings[0];
+		}
+
+		[[nodiscard]] inline auto white() const
+		{
+			return kings[1];
+		}
+
+		[[nodiscard]] inline auto black() -> auto &
+		{
+			return kings[0];
+		}
+
+		[[nodiscard]] inline auto white() -> auto &
+		{
+			return kings[1];
+		}
+
+		[[nodiscard]] inline auto color(Color c) const
+		{
+			assert(c != Color::None);
+			return kings[static_cast<i32>(c)];
+		}
+
+		[[nodiscard]] inline auto color(Color c) -> auto &
+		{
+			assert(c != Color::None);
+			return kings[static_cast<i32>(c)];
+		}
+
+		[[nodiscard]] inline auto operator==(const KingPair &other) const -> bool = default;
+
+		[[nodiscard]] inline auto isValid()
+		{
+			return black() != Square::None
+				&& white() != Square::None
+				&& black() != white();
+		}
+	};
 
 	struct CastlingRooks
 	{
