@@ -354,9 +354,11 @@ namespace stormphrax
 			if (pos.checkers().multiple())
 			{
 				auto their_king_radius = (attacks::getKingAttacks(pos.king(them))) & theirs;
-				generateSliders(noisy, pos, their_king_radius);
-				generatePawnsNoisy(noisy, pos, their_king_radius);
-				generateKnights(noisy, pos, their_king_radius);
+				if (their_king_radius) {
+					generateSliders(noisy, pos, their_king_radius);
+					generatePawnsNoisy(noisy, pos, their_king_radius);
+					generateKnights(noisy, pos, their_king_radius);
+				}
 				return; //Only noisy moves allowed are if we can capture their king, when we're in check
 			}
 
@@ -368,14 +370,14 @@ namespace stormphrax
 			if (!(pos.checkers() & epPawn).empty())
 				pawnDstMask |= epMask;
 
-			auto boom_radius = (attacks::getKingAttacks(pos.checkers().lowestSquare())) & theirs;
-			if (pieceType(pos.boards().pieceAt(pos.checkers().lowestSquare())) == PieceType::Pawn) {
-				boom_radius = Bitboard{};
+			
+			if (!(pos.bbs().pawns() & pos.checkers())) {
+				auto boom_radius = (attacks::getKingAttacks(pos.checkers().lowestSquare())) & theirs;
+				dstMask |= boom_radius;
+				pawnDstMask |= boom_radius;
 			}
 			auto their_king_radius = (attacks::getKingAttacks(pos.king(them))) & theirs;
-			dstMask |= boom_radius;
 			dstMask |= their_king_radius; // Can explode the checking piece or blow the opposite King while in check
-			pawnDstMask |= boom_radius;
 			pawnDstMask |= their_king_radius;
 		}
 
@@ -456,9 +458,11 @@ namespace stormphrax
 			{
 				generateKings<false>(dst, pos, atomicKingDstMask);
 				auto their_king_radius = (attacks::getKingAttacks(pos.king(them))) & theirs;
-				generateSliders(dst, pos, their_king_radius);
-				generatePawnsNoisy(dst, pos, their_king_radius);
-				generateKnights(dst, pos, their_king_radius);
+				if (their_king_radius) {
+					generateSliders(dst, pos, their_king_radius);
+					generatePawnsNoisy(dst, pos, their_king_radius);
+					generateKnights(dst, pos, their_king_radius);
+				}
 				return; //Only kings can move during multiple checks OR explode the opposite king, Need to recheck this when i Have the patience
 			}
 			
@@ -470,14 +474,15 @@ namespace stormphrax
 				pawnDstMask |= epMask;
 			
 			
-			auto boom_radius = (attacks::getKingAttacks(pos.checkers().lowestSquare())) & theirs;
-			if (pos.bbs().pawns() & pos.checkers()) {
-				boom_radius = Bitboard{};
+
+			if (!(pos.bbs().pawns() & pos.checkers())) {
+				auto boom_radius = (attacks::getKingAttacks(pos.checkers().lowestSquare())) & theirs;
+				dstMask |= boom_radius;
+				pawnDstMask |= boom_radius;
 			}
+
 			auto their_king_radius = (attacks::getKingAttacks(pos.king(them))) & theirs;
-			dstMask |= boom_radius;
 			dstMask |= their_king_radius; // Can explode the checking piece or blow the opposite King while in check
-			pawnDstMask |= boom_radius;
 			pawnDstMask |= their_king_radius;
 			//generateSliders(dst, pos, boom_radius);
 			//generatePawnsNoisy(dst, pos, boom_radius);

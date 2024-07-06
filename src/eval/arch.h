@@ -36,12 +36,25 @@ namespace stormphrax::eval
 	using L1Activation = nnue::activation::SquaredClippedReLU<i16, i32, L1Q>;
 
 	constexpr u32 InputSize = 768;
-	constexpr u32 Layer1Size = 768;
+	constexpr u32 Layer1Size = 1024;
 
 	constexpr i32 Scale = 400;
 
+	using InputFeatureSet = nnue::features::KingBuckets<
+		0, 0, 1, 1, 2, 2, 3, 3,
+		4, 4, 4, 4, 5, 5, 5, 5,
+		6, 6, 6, 6, 7, 7, 7, 7,
+		6, 6, 6, 6, 7, 7, 7, 7,
+		6, 6, 6, 6, 7, 7, 7, 7,
+		6, 6, 6, 6, 7, 7, 7, 7,
+		6, 6, 6, 6, 7, 7, 7, 7,
+		6, 6, 6, 6, 7, 7, 7, 7
+	>;
+	//using OutputBucketing = nnue::output::MaterialCount<8>;
+
+	//using OutputBucketing = nnue::output::MaterialCount<8>;
 	// visually flipped upside down, a1 = 0
-	using InputFeatureSet = nnue::features::SingleBucket;
+	//using InputFeatureSet = nnue::features::SingleBucket;
 
 	using OutputBucketing = nnue::output::Single;
 }

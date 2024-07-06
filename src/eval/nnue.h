@@ -108,9 +108,9 @@ namespace stormphrax::eval
 			for (const auto c : { Color::Black, Color::White })
 			{
 				const auto king = c == Color::Black ? blackKing : whiteKing;
-				const auto bucket = InputFeatureSet::getBucket(c, king);
+				const auto entry = InputFeatureSet::getRefreshTableEntry(c, king);
 
-				auto &rtEntry = m_refreshTable.table[bucket];
+				auto &rtEntry = m_refreshTable.table[entry];
 				resetAccumulator(rtEntry.accumulator, c, bbs, king);
 
 				m_curr->copyFrom(c, rtEntry.accumulator);
@@ -253,9 +253,9 @@ namespace stormphrax::eval
 		static inline auto refreshAccumulator(Accumulator &accumulator, Color c,
 			const BitboardSet &bbs, RefreshTable &refreshTable, Square king) -> void
 		{
-			const auto bucket = InputFeatureSet::getBucket(c, king);
+			const auto tableIdx = InputFeatureSet::getRefreshTableEntry(c, king);
 
-			auto &rtEntry = refreshTable.table[bucket];
+			auto &rtEntry = refreshTable.table[tableIdx];
 			auto &prevBoards = rtEntry.colorBbs(c);
 
 			for (u32 pieceIdx = 0; pieceIdx < static_cast<u32>(Piece::None); ++pieceIdx)
@@ -327,7 +327,9 @@ namespace stormphrax::eval
 			const u32 color = pieceColor(piece) == c ? 0 : 1;
 
 			if (c == Color::Black)
-				sq = flipSquare(sq);
+				sq = flipSquareRank(sq);
+
+			sq = InputFeatureSet::transformFeatureSquare(sq, king);
 
 			const auto bucketOffset = InputFeatureSet::getBucket(c, king) * InputSize;
 			return bucketOffset + color * ColorStride + type * PieceStride + static_cast<u32>(sq);

@@ -93,8 +93,14 @@ namespace stormphrax::eval::nnue
 		{
 			assert(suby[0] < InputCount);
 
+			const auto toMult = OutputCount;
+			/*for (int i=0;i<vecSubCount;i++) {
+				suby[i]=suby[i]*OutputCount;
+			}*/
+
 			subSub(src.forColor(c), forColor(c), featureTransformer.weights,
-				suby, vecSubCount);
+				suby, vecSubCount, toMult);
+			//subSub(src.forColor(c), forColor(c), featureTransformer.weights,suby, vecSubCount, OutputCount);
 		}
 
 		inline auto subSubAddFrom(Accumulator<Ft> &src, const Ft &featureTransformer,
@@ -162,10 +168,12 @@ namespace stormphrax::eval::nnue
 		}
 
 		//Removal of pieces Only for atomic
+		//static inline auto subSub(std::span<Type, OutputCount> src, std::span<Type, OutputCount> dst,
+		//	std::span<const Type, WeightCount> delta, StaticVector<u32,12> sub, usize vecSubCount, u32 outputCountIn) -> void
 		static inline auto subSub(std::span<Type, OutputCount> src, std::span<Type, OutputCount> dst,
-			std::span<const Type, WeightCount> delta, StaticVector<u32,12> sub, usize vecSubCount) -> void
+			std::span<const Type, WeightCount> delta, StaticVector<u32,12> sub, usize vecSubCount, u32 toMult) -> void
 		{
-			assert(sub[0]*OutputCount + OutputCount <= delta.size());
+			assert(sub[0]*toMult + OutputCount <= delta.size());
 
 			for (u32 i = 0; i < OutputCount; ++i)
 			{
@@ -173,7 +181,7 @@ namespace stormphrax::eval::nnue
 				for (usize j = 0; j < vecSubCount ; j++) {
 					u32 null = 0;
 					if (sub[j] != null) {
-						dst[i] -= delta[sub[j]*OutputCount + i];
+						dst[i] -= delta[sub[j]*toMult + i];
 					}
 				}
 			}
@@ -249,10 +257,10 @@ namespace stormphrax::eval::nnue
 		}
 	};
 
-	template <typename Ft, u32 BucketCount>
+	template <typename Ft, u32 Size>
 	struct RefreshTable
 	{
-		std::array<RefreshTableEntry<Accumulator<Ft>>, BucketCount> table{};
+		std::array<RefreshTableEntry<Accumulator<Ft>>, Size> table{};
 
 		inline void init(const Ft &featureTransformer)
 		{
@@ -274,7 +282,7 @@ namespace stormphrax::eval::nnue
 
 		using Accumulator = Accumulator<FeatureTransformer<Type, Inputs, Outputs, FeatureSet>>;
 		using RefreshTable = RefreshTable<FeatureTransformer<Type, Inputs, Outputs, FeatureSet>,
-		    FeatureSet::BucketCount>;
+		    FeatureSet::RefreshTableSize>;
 
 		static constexpr auto  InputCount = InputFeatureSet::BucketCount * Inputs;
 		static constexpr auto OutputCount = Outputs;
