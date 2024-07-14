@@ -257,10 +257,10 @@ namespace stormphrax::eval::nnue
 		}
 	};
 
-	template <typename Ft, u32 Size>
+	template <typename Ft, u32 BucketCount>
 	struct RefreshTable
 	{
-		std::array<RefreshTableEntry<Accumulator<Ft>>, Size> table{};
+		std::array<RefreshTableEntry<Accumulator<Ft>>, BucketCount> table{};
 
 		inline void init(const Ft &featureTransformer)
 		{
@@ -282,7 +282,7 @@ namespace stormphrax::eval::nnue
 
 		using Accumulator = Accumulator<FeatureTransformer<Type, Inputs, Outputs, FeatureSet>>;
 		using RefreshTable = RefreshTable<FeatureTransformer<Type, Inputs, Outputs, FeatureSet>,
-		    FeatureSet::RefreshTableSize>;
+		    FeatureSet::BucketCount>;
 
 		static constexpr auto  InputCount = InputFeatureSet::BucketCount * Inputs;
 		static constexpr auto OutputCount = Outputs;

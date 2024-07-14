@@ -87,13 +87,6 @@ namespace stormphrax
 		return static_cast<PieceType>(static_cast<i32>(piece) >> 1);
 	}
 
-	[[nodiscard]] constexpr auto pieceTypeOrNone(Piece piece)
-	{
-		if (piece == Piece::None)
-			return PieceType::None;
-		return static_cast<PieceType>(static_cast<i32>(piece) >> 1);
-	}
-
 	[[nodiscard]] constexpr auto pieceColor(Piece piece)
 	{
 		assert(piece != Piece::None);
@@ -218,16 +211,10 @@ namespace stormphrax
 		return static_cast<i32>(square) & 0x7;
 	}
 
-	[[nodiscard]] constexpr auto flipSquareRank(Square square)
+	[[nodiscard]] constexpr auto flipSquare(Square square)
 	{
 		assert(square != Square::None);
-		return static_cast<Square>(static_cast<i32>(square) ^ 0b111000);
-	}
-
-	[[nodiscard]] constexpr auto flipSquareFile(Square square)
-	{
-		assert(square != Square::None);
-		return static_cast<Square>(static_cast<i32>(square) ^ 0b000111);
+		return static_cast<Square>(static_cast<i32>(square) ^ 0x38);
 	}
 
 	[[nodiscard]] constexpr auto squareBit(Square square)
@@ -259,52 +246,6 @@ namespace stormphrax
 		assert(rank >= 0 && rank < 8);
 		return c == Color::Black ? 7 - rank : rank;
 	}
-
-	struct KingPair
-	{
-		std::array<Square, 2> kings{};
-
-		[[nodiscard]] inline auto black() const
-		{
-			return kings[0];
-		}
-
-		[[nodiscard]] inline auto white() const
-		{
-			return kings[1];
-		}
-
-		[[nodiscard]] inline auto black() -> auto &
-		{
-			return kings[0];
-		}
-
-		[[nodiscard]] inline auto white() -> auto &
-		{
-			return kings[1];
-		}
-
-		[[nodiscard]] inline auto color(Color c) const
-		{
-			assert(c != Color::None);
-			return kings[static_cast<i32>(c)];
-		}
-
-		[[nodiscard]] inline auto color(Color c) -> auto &
-		{
-			assert(c != Color::None);
-			return kings[static_cast<i32>(c)];
-		}
-
-		[[nodiscard]] inline auto operator==(const KingPair &other) const -> bool = default;
-
-		[[nodiscard]] inline auto isValid()
-		{
-			return black() != Square::None
-				&& white() != Square::None
-				&& black() != white();
-		}
-	};
 
 	struct CastlingRooks
 	{
@@ -375,8 +316,6 @@ namespace stormphrax
 	constexpr auto ScoreMate = 32766;
 	constexpr auto ScoreTbWin = 30000;
 	constexpr auto ScoreWin = 25000;
-
-	constexpr auto ScoreNone = -ScoreInf;
 
 	constexpr i32 MaxDepth = 255;
 
