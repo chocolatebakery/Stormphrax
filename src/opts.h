@@ -30,7 +30,7 @@ namespace stormphrax
 
 		struct GlobalOptions
 		{
-			bool chess960{false};
+			bool chess960{true};
 			bool showWdl{false};
 
 			bool syzygyEnabled{false};

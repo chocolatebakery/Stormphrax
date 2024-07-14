@@ -137,10 +137,10 @@ namespace stormphrax
 	template auto Position::movePieceNoCap<false>(Piece, Square, Square) -> void;
 	template auto Position::movePieceNoCap<true>(Piece, Square, Square) -> void;
 
-	template auto Position::movePiece<false, false>(Piece, Square, Square, eval::NnueUpdates &) -> Piece;
-	template auto Position::movePiece<true, false>(Piece, Square, Square, eval::NnueUpdates &) -> Piece;
-	template auto Position::movePiece<false, true>(Piece, Square, Square, eval::NnueUpdates &) -> Piece;
-	template auto Position::movePiece<true, true>(Piece, Square, Square, eval::NnueUpdates &) -> Piece;
+	template auto Position::movePiece<false, false>(Piece, Square, Square, CastlingRooks &, eval::NnueUpdates &) -> Piece;
+	template auto Position::movePiece<true, false>(Piece, Square, Square, CastlingRooks &, eval::NnueUpdates &) -> Piece;
+	template auto Position::movePiece<false, true>(Piece, Square, Square, CastlingRooks &, eval::NnueUpdates &) -> Piece;
+	template auto Position::movePiece<true, true>(Piece, Square, Square, CastlingRooks &, eval::NnueUpdates &) -> Piece;
 
 	template auto Position::promotePawn<false, false>(Piece, Square, Square, PieceType, eval::NnueUpdates &) -> Piece;
 	template auto Position::promotePawn<true, false>(Piece, Square, Square, PieceType, eval::NnueUpdates &) -> Piece;
@@ -745,7 +745,7 @@ namespace stormphrax
 		switch (moveType)
 		{
 		case MoveType::Standard:
-			captured = movePiece<true, UpdateNnue>(moving, moveSrc, moveDst, updates);
+			captured = movePiece<true, UpdateNnue>(moving, moveSrc, moveDst, newCastlingRooks, updates);
 			break;
 		case MoveType::Promotion:
 			captured = promotePawn<true, UpdateNnue>(moving, moveSrc, moveDst, move.promo(), updates);
@@ -761,18 +761,7 @@ namespace stormphrax
 		if constexpr (UpdateNnue)
 			nnueState->update<StateHistory>(updates,
 				state.boards.bbs(), state.blackKing(), state.whiteKing());
-	
-		//Too lazy to figure out why it wasnt working on the Boom
-		if (captured != Piece::None) {
-			if (state.boards.pieceAt(Square::A1) == Piece::None)
-				newCastlingRooks.color(Color::White).unset(Square::A1);
-			if (state.boards.pieceAt(Square::H1) == Piece::None)
-				newCastlingRooks.color(Color::White).unset(Square::H1);
-			if (state.boards.pieceAt(Square::A8) == Piece::None)
-				newCastlingRooks.color(Color::Black).unset(Square::A8);
-			if (state.boards.pieceAt(Square::H8) == Piece::None)
-				newCastlingRooks.color(Color::Black).unset(Square::H8);
-		}
+
 		if (movingType == PieceType::Rook)
 			newCastlingRooks.color(stm).unset(moveSrc);
 		else if (movingType == PieceType::King)
@@ -1362,7 +1351,7 @@ namespace stormphrax
 	}
 
 	template <bool UpdateKey, bool UpdateNnue>
-	auto Position::movePiece(Piece piece, Square src, Square dst, eval::NnueUpdates &nnueUpdates) -> Piece
+	auto Position::movePiece(Piece piece, Square src, Square dst, CastlingRooks &castleUpdates, eval::NnueUpdates &nnueUpdates) -> Piece
 	{
 		assert(piece != Piece::None);
 
@@ -1386,6 +1375,9 @@ namespace stormphrax
 				boom &= boom - 1;
 				auto piece_boom = state.boards.pieceAt(boomsq);
 				if (piece_boom != Piece::None) {
+					if (pieceType(piece_boom) == PieceType::Rook) {
+						castleUpdates.color(pieceColor(piece_boom)).unset(boomsq);
+					}	
 					state.boards.removePiece(boomsq, piece_boom);
 					if constexpr (UpdateNnue) {
 						nnueUpdates.pushSub(piece_boom, boomsq);
