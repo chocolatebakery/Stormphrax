@@ -580,7 +580,7 @@ namespace stormphrax
 		[[nodiscard]] auto movePiece(Piece piece, Square src, Square dst, CastlingRooks &castleUpdates, eval::NnueUpdates &nnueUpdates) -> Piece;
 
 		template <bool UpdateKeys = true, bool UpdateNnue = true>
-		auto promotePawn(Piece pawn, Square src, Square dst, PieceType promo, eval::NnueUpdates &nnueUpdates) -> Piece;
+		auto promotePawn(Piece pawn, Square src, Square dst, PieceType promo, CastlingRooks &castleUpdates, eval::NnueUpdates &nnueUpdates) -> Piece;
 		template <bool UpdateKeys = true, bool UpdateNnue = true>
 		auto castle(Piece king, Square kingSrc, Square rookSrc, eval::NnueUpdates &nnueUpdates) -> void;
 		template <bool UpdateKeys = true, bool UpdateNnue = true>
