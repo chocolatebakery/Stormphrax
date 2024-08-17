@@ -199,7 +199,7 @@ namespace stormphrax
 			std::cout << "option name UCI_Chess960 type check default "
 				<< (defaultOpts.chess960 ? "true" : "false") << '\n';
 			//Doesn't do anything, just the options to be detected by cutechess or winboard
-			std::cout << "option name UCI_Variant type combo default crazyhouse var crazyhouse" << '\n'; //Just to accept crazyhouse	
+			std::cout << "option name UCI_Variant type combo default 3check var 3check" << '\n'; //Just to accept 3check	
 			std::cout << "option name UCI_ShowWDL type check default "
 				<< (defaultOpts.showWdl ? "true" : "false") << '\n';
 			std::cout << "option name Move Overhead type spin default " << limit::DefaultMoveOverhead
