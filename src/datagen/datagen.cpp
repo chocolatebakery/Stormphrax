@@ -79,8 +79,8 @@ namespace stormphrax::datagen
 			{
 				if (data.nodes >= m_hardNodeLimit)
 				{
-					//std::cout << "thread " << m_threadId << ": stopping search after "
-						//<< data.nodes << " nodes (limit: " << m_hardNodeLimit << ")" << std::endl;
+					std::cout << "thread " << m_threadId << ": stopping search after "
+						<< data.nodes << " nodes (limit: " << m_hardNodeLimit << ")" << std::endl;
 					return true;
 				}
 
@@ -122,10 +122,10 @@ namespace stormphrax::datagen
 			i32 m_custDepthMaxLimit{};
 		};
 
-		constexpr usize VerificationHardNodeLimit = 244000;
+		constexpr usize VerificationHardNodeLimit = 25165814;
 
 		constexpr usize DatagenSoftNodeLimit = 5000;
-		constexpr usize DatagenHardNodeLimit = 122000;
+		constexpr usize DatagenHardNodeLimit = 8388608;
 
 
 		constexpr Score VerificationScoreLimit = 1000;
@@ -317,7 +317,7 @@ namespace stormphrax::datagen
 					}
 
 					//const bool filtered = thread->pos.isCheck() || thread->pos.isNoisy(move) || thread->pos.isAtomicLoss() || thread->pos.isAtomicWin();
-					const bool filtered = thread->pos.isVariantOver(); //Filtering No King Positions
+					const bool filtered = thread->pos.isNoisy(move) || thread->pos.isVariantOver(); //Filtering No King Positions
 
 					thread->pos.applyMoveUnchecked<true, false>(move, &thread->nnueState);
 

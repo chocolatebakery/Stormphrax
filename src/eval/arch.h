@@ -28,7 +28,7 @@
 
 namespace stormphrax::eval
 {
-	// current arch: (768->768)x2->1, SquaredClippedReLU
+	// current arch: (768->2048)x2->1, SquaredClippedReLU
 
 	constexpr i32 L1Q = 255;
 	constexpr i32 OutputQ = 64;
@@ -36,47 +36,11 @@ namespace stormphrax::eval
 	using L1Activation = nnue::activation::SquaredClippedReLU<i16, i32, L1Q>;
 
 	constexpr u32 InputSize = 768;
-	constexpr u32 Layer1Size = 768;
+	constexpr u32 Layer1Size = 2048;
 
 	constexpr i32 Scale = 400;
 
-	/*using InputFeatureSet = nnue::features::KingBuckets<
-		0, 0, 0, 0, 1, 1, 1, 1,
-		0, 0, 0, 0, 1, 1, 1, 1,
-		2, 2, 2, 2, 3, 3, 3, 3,
-		2, 2, 2, 2, 3, 3, 3, 3,
-		2, 2, 2, 2, 3, 3, 3, 3,
-		2, 2, 2, 2, 3, 3, 3, 3,
-		2, 2, 2, 2, 3, 3, 3, 3,
-		2, 2, 2, 2, 3, 3, 3, 3
-	>;*/
-
-
-	/*using InputFeatureSet = nnue::features::KingBuckets<
-		0, 0, 1, 1, 2, 2, 3, 3,
-		4, 4, 4, 4, 5, 5, 5, 5,
-		6, 6, 6, 6, 7, 7, 7, 7,
-		6, 6, 6, 6, 7, 7, 7, 7,
-		6, 6, 6, 6, 7, 7, 7, 7,
-		6, 6, 6, 6, 7, 7, 7, 7,
-		6, 6, 6, 6, 7, 7, 7, 7,
-		6, 6, 6, 6, 7, 7, 7, 7
-	>;*/
-
-	/*using InputFeatureSet = nnue::features::KingBucketsMirrored<
-		0, 0, 1, 1,
-		2, 2, 2, 2,
-		3, 3, 3, 3,
-		3, 3, 3, 3,
-		3, 3, 3, 3,
-		3, 3, 3, 3,
-		3, 3, 3, 3,
-		3, 3, 3, 3
-	>;*/
-
-
-	//using InputFeatureSet = nnue::features::SingleBucket;
-	//using OutputBucketing = nnue::output::MaterialCount<8>;
-
+	// visually flipped upside down, a1 = 0
+	using InputFeatureSet = nnue::features::SingleBucket;
 	using OutputBucketing = nnue::output::Single;
 }

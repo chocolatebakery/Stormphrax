@@ -55,7 +55,7 @@ namespace stormphrax::eval::nnue::output
 
 		static inline auto getBucket(const BitboardSet &bbs) -> u32
 		{
-			constexpr auto Div = (32 + Count - 1) / Count;
+			constexpr auto Div = 32 / Count;
 			return (bbs.occupancy().popcount() - 2) / Div;
 		}
 	};
