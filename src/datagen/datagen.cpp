@@ -79,8 +79,8 @@ namespace stormphrax::datagen
 			{
 				if (data.nodes >= m_hardNodeLimit)
 				{
-					std::cout << "thread " << m_threadId << ": stopping search after "
-						<< data.nodes << " nodes (limit: " << m_hardNodeLimit << ")" << std::endl;
+					/*std::cout << "thread " << m_threadId << ": stopping search after "
+						<< data.nodes << " nodes (limit: " << m_hardNodeLimit << ")" << std::endl;*/
 					return true;
 				}
 
@@ -122,16 +122,16 @@ namespace stormphrax::datagen
 			i32 m_custDepthMaxLimit{};
 		};
 
-		constexpr usize VerificationHardNodeLimit = 25165814;
+		constexpr usize VerificationHardNodeLimit = 61000;
 
-		constexpr usize DatagenSoftNodeLimit = 5000;
-		constexpr usize DatagenHardNodeLimit = 8388608;
+		constexpr usize DatagenSoftNodeLimit = 2500;
+		constexpr usize DatagenHardNodeLimit = 12000;
 
 
-		constexpr Score VerificationScoreLimit = 1000;
+		constexpr Score VerificationScoreLimit = 32000;
 
-		constexpr Score WinAdjMinScore = 2500;
-		constexpr Score DrawAdjMaxScore = 10;
+		constexpr Score WinAdjMinScore = 32000;
+		constexpr Score DrawAdjMaxScore = 0;
 
 		constexpr u16 depthLimit = 5;
 		constexpr u16 depthMaxLimit = 6;
@@ -228,7 +228,7 @@ namespace stormphrax::datagen
 				thread->pos.clearStateHistory();
 				thread->nnueState.reset(thread->pos.bbs(), thread->pos.blackKing(), thread->pos.whiteKing());
 
-				thread->maxDepth = 10; //Max depth 10
+				thread->maxDepth = 2; //Max depth 10
 				limiter.setSoftNodeLimit(std::numeric_limits<usize>::max());
 				limiter.setHardNodeLimit(VerificationHardNodeLimit);
 				limiter.setDepthLimit(8);
