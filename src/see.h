@@ -162,11 +162,9 @@ namespace stormphrax::see
 			else {
 				result += gain(boards,move,victim,move.dst());
 			}
-		}
-
-		if (boards.pieceAt(move.dst()) != Piece::None && move.type() != MoveType::Castling) {
 			return (result - 1);
 		}
+
 		return std::min(result,0);
 	}
 	
