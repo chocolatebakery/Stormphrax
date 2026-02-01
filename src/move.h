@@ -33,6 +33,7 @@ namespace stormphrax {
         kPromotion,
         kCastling,
         kEnPassant,
+        kDrop,
     };
 
     class Move {
@@ -40,7 +41,7 @@ namespace stormphrax {
         constexpr Move() = default;
 
         [[nodiscard]] constexpr usize fromSqIdx() const {
-            return m_move >> 10;
+            return m_move & kSquareMask;
         }
 
         [[nodiscard]] constexpr Square fromSq() const {
@@ -48,15 +49,15 @@ namespace stormphrax {
         }
 
         [[nodiscard]] constexpr i32 fromSqRank() const {
-            return m_move >> 13;
+            return static_cast<i32>(fromSqIdx()) >> 3;
         }
 
         [[nodiscard]] constexpr i32 fromSqFile() const {
-            return (m_move >> 10) & 0x7;
+            return static_cast<i32>(fromSqIdx()) & 0x7;
         }
 
         [[nodiscard]] constexpr usize toSqIdx() const {
-            return (m_move >> 4) & 0x3F;
+            return (m_move >> kToShift) & kSquareMask;
         }
 
         [[nodiscard]] constexpr Square toSq() const {
@@ -64,30 +65,34 @@ namespace stormphrax {
         }
 
         [[nodiscard]] constexpr i32 toSqRank() const {
-            return (m_move >> 7) & 0x7;
+            return static_cast<i32>(toSqIdx()) >> 3;
         }
 
         [[nodiscard]] constexpr i32 toSqFile() const {
-            return (m_move >> 4) & 0x7;
+            return static_cast<i32>(toSqIdx()) & 0x7;
         }
 
         [[nodiscard]] constexpr usize promoIdx() const {
-            return (m_move >> 2) & 0x3;
+            return (m_move >> kAuxShift) & kAuxMask;
         }
 
         [[nodiscard]] constexpr PieceType promo() const {
-            return static_cast<PieceType>(promoIdx() + 1);
+            const auto moveType = type();
+            if (moveType == MoveType::kPromotion || moveType == MoveType::kDrop) {
+                return static_cast<PieceType>(promoIdx());
+            }
+            return PieceType::kNone;
         }
 
         [[nodiscard]] constexpr MoveType type() const {
-            return static_cast<MoveType>(m_move & 0x3);
+            return static_cast<MoveType>((m_move >> kTypeShift) & kTypeMask);
         }
 
         [[nodiscard]] constexpr bool isNull() const {
             return m_move == 0;
         }
 
-        [[nodiscard]] constexpr u16 data() const {
+        [[nodiscard]] constexpr u32 data() const {
             return m_move;
         }
 
@@ -98,41 +103,49 @@ namespace stormphrax {
         constexpr bool operator==(const Move& other) const = default;
 
         [[nodiscard]] static constexpr Move standard(Square src, Square dst) {
-            return Move{static_cast<u16>(
-                (static_cast<u16>(src) << 10) | (static_cast<u16>(dst) << 4) | static_cast<u16>(MoveType::kStandard)
-            )};
+            return Move{pack(src, dst, MoveType::kStandard)};
         }
 
         [[nodiscard]] static constexpr Move promotion(Square src, Square dst, PieceType promo) {
-            return Move{static_cast<u16>(
-                (static_cast<u16>(src) << 10) | (static_cast<u16>(dst) << 4) | ((static_cast<u16>(promo) - 1) << 2)
-                | static_cast<u16>(MoveType::kPromotion)
-            )};
+            return Move{pack(src, dst, MoveType::kPromotion, static_cast<u32>(promo))};
         }
 
         [[nodiscard]] static constexpr Move castling(Square src, Square dst) {
-            return Move{static_cast<u16>(
-                (static_cast<u16>(src) << 10) | (static_cast<u16>(dst) << 4) | static_cast<u16>(MoveType::kCastling)
-            )};
+            return Move{pack(src, dst, MoveType::kCastling)};
         }
 
         [[nodiscard]] static constexpr Move enPassant(Square src, Square dst) {
-            return Move{static_cast<u16>(
-                (static_cast<u16>(src) << 10) | (static_cast<u16>(dst) << 4) | static_cast<u16>(MoveType::kEnPassant)
-            )};
+            return Move{pack(src, dst, MoveType::kEnPassant)};
+        }
+
+        [[nodiscard]] static constexpr Move drop(PieceType piece, Square dst) {
+            return Move{pack(dst, dst, MoveType::kDrop, static_cast<u32>(piece))};
         }
 
     private:
-        explicit constexpr Move(u16 move) :
+        static constexpr u32 kSquareMask = 0x3F;
+        static constexpr u32 kAuxMask = 0x7;
+        static constexpr u32 kTypeMask = 0x7;
+
+        static constexpr u32 kToShift = 6;
+        static constexpr u32 kAuxShift = 12;
+        static constexpr u32 kTypeShift = 15;
+
+        [[nodiscard]] static constexpr u32 pack(Square src, Square dst, MoveType type, u32 aux = 0) {
+            return (static_cast<u32>(src) & kSquareMask) | ((static_cast<u32>(dst) & kSquareMask) << kToShift)
+                | ((aux & kAuxMask) << kAuxShift) | ((static_cast<u32>(type) & kTypeMask) << kTypeShift);
+        }
+
+        explicit constexpr Move(u32 move) :
                 m_move{move} {}
 
-        u16 m_move{};
+        u32 m_move{};
     };
 
     constexpr Move kNullMove{};
 
-    // assumed upper bound for number of possible moves is 218
-    constexpr usize kDefaultMoveListCapacity = 256;
+    // Crazyhouse drops can exceed the classical move upper bound.
+    constexpr usize kDefaultMoveListCapacity = 1024;
 
     using MoveList = StaticVector<Move, kDefaultMoveListCapacity>;
 } // namespace stormphrax

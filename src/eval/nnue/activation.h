@@ -60,6 +60,11 @@ namespace stormphrax::eval::nnue::activation {
         SP_ALWAYS_INLINE_NDEBUG static inline OutputType output(OutputType value) {
             return value;
         }
+
+        template <typename OutputType, OutputType _unused>
+        SP_ALWAYS_INLINE_NDEBUG static inline OutputType output(OutputType value) {
+            return value;
+        }
     };
 
     struct [[maybe_unused]] ReLU {
@@ -94,6 +99,11 @@ namespace stormphrax::eval::nnue::activation {
         }
 
         template <typename T>
+        SP_ALWAYS_INLINE_NDEBUG static inline T output(T value) {
+            return value;
+        }
+
+        template <typename T, T _unused>
         SP_ALWAYS_INLINE_NDEBUG static inline T output(T value) {
             return value;
         }
@@ -135,6 +145,11 @@ namespace stormphrax::eval::nnue::activation {
         }
 
         template <typename T>
+        SP_ALWAYS_INLINE_NDEBUG static inline T output(T value) {
+            return value;
+        }
+
+        template <typename T, T _unused>
         SP_ALWAYS_INLINE_NDEBUG static inline T output(T value) {
             return value;
         }

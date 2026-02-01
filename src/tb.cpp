@@ -47,6 +47,10 @@ namespace stormphrax::tb {
     }
 
     ProbeResult probeRoot(MoveList* rootMoves, const Position& pos) {
+        if (pos.crazyhouse()) {
+            return ProbeResult::kFailed;
+        }
+
         const auto moveFromTb = [](auto tbMove) {
             static constexpr auto kPromoPieces = std::array{
                 PieceType::kNone,
@@ -165,6 +169,10 @@ namespace stormphrax::tb {
     }
 
     ProbeResult probe(const Position& pos) {
+        if (pos.crazyhouse()) {
+            return ProbeResult::kFailed;
+        }
+
         const auto& bbs = pos.bbs();
 
         const auto epSq = pos.enPassant();

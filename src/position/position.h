@@ -117,6 +117,14 @@ namespace stormphrax {
             majors ^= key;
         }
 
+        inline void flipHand(Piece piece, u8 count) {
+            all ^= keys::hand(piece, count);
+        }
+
+        inline void flipPromoted(Square square) {
+            all ^= keys::promoted(square);
+        }
+
         [[nodiscard]] inline bool operator==(const Keys& other) const = default;
     };
 
@@ -194,6 +202,10 @@ namespace stormphrax {
         [[nodiscard]] inline u64 roughKeyAfter(Move move) const {
             assert(move);
 
+            if (move.type() == MoveType::kDrop) {
+                return m_keys.all ^ keys::color();
+            }
+
             const auto moving = m_boards.pieceOn(move.fromSq());
             assert(moving != Piece::kNone);
 
@@ -211,6 +223,44 @@ namespace stormphrax {
             key ^= keys::color();
 
             return key;
+        }
+
+        [[nodiscard]] inline bool crazyhouse() const {
+            return g_opts.crazyhouse;
+        }
+
+        [[nodiscard]] inline bool isPromoted(Square square) const {
+            return m_promoted[square];
+        }
+
+        [[nodiscard]] inline Bitboard promoted() const {
+            return m_promoted;
+        }
+
+        [[nodiscard]] inline const std::array<std::array<u8, 5>, 2>& pockets() const {
+            return m_pockets;
+        }
+
+        [[nodiscard]] inline u8 pocketCount(Color c, PieceType pt) const {
+            assert(pt != PieceType::kNone && pt != PieceType::kKing);
+            return m_pockets[static_cast<i32>(c)][static_cast<i32>(pt)];
+        }
+
+        [[nodiscard]] inline bool hasPocketPieces(Color c) const {
+            const auto& pocket = m_pockets[static_cast<i32>(c)];
+            for (auto count : pocket) {
+                if (count != 0) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        [[nodiscard]] inline Piece movingPiece(Move move) const {
+            if (move.type() == MoveType::kDrop) {
+                return colorPiece(move.promo(), stm());
+            }
+            return m_boards.pieceOn(move.fromSq());
         }
 
         [[nodiscard]] inline Bitboard allAttackersTo(Square square, Bitboard occupancy) const {
@@ -400,7 +450,7 @@ namespace stormphrax {
 
             const auto type = move.type();
 
-            if (type == MoveType::kCastling) {
+            if (type == MoveType::kCastling || type == MoveType::kDrop) {
                 return Piece::kNone;
             } else if (type == MoveType::kEnPassant) {
                 return flipPieceColor(boards().pieceOn(move.fromSq()));
@@ -414,7 +464,7 @@ namespace stormphrax {
 
             const auto type = move.type();
 
-            return type != MoveType::kCastling
+            return type != MoveType::kCastling && type != MoveType::kDrop
                 && (type == MoveType::kEnPassant || move.promo() == PieceType::kQueen
                     || boards().pieceOn(move.toSq()) != Piece::kNone);
         }
@@ -424,7 +474,7 @@ namespace stormphrax {
 
             const auto type = move.type();
 
-            if (type == MoveType::kCastling) {
+            if (type == MoveType::kCastling || type == MoveType::kDrop) {
                 return {false, Piece::kNone};
             } else if (type == MoveType::kEnPassant) {
                 return {true, colorPiece(PieceType::kPawn, stm())};
@@ -449,8 +499,20 @@ namespace stormphrax {
         [[nodiscard]] inline i32 classicalMaterial() const {
             const auto& bbs = m_boards.bbs();
 
-            return 1 * bbs.pawns().popcount() + 3 * bbs.knights().popcount() + 3 * bbs.bishops().popcount()
-                 + 5 * bbs.rooks().popcount() + 9 * bbs.queens().popcount();
+            auto material = 1 * bbs.pawns().popcount() + 3 * bbs.knights().popcount() + 3 * bbs.bishops().popcount()
+                         + 5 * bbs.rooks().popcount() + 9 * bbs.queens().popcount();
+
+            if (crazyhouse()) {
+                static constexpr std::array<i32, 5> kPocketValues{1, 3, 3, 5, 9};
+                for (const auto color : {Color::kBlack, Color::kWhite}) {
+                    const auto& pocket = m_pockets[static_cast<i32>(color)];
+                    for (usize i = 0; i < pocket.size(); ++i) {
+                        material += static_cast<i32>(pocket[i]) * kPocketValues[i];
+                    }
+                }
+            }
+
+            return material;
         }
 
         [[nodiscard]] static Position starting();
@@ -478,6 +540,17 @@ namespace stormphrax {
         void castle(Piece king, Square kingSrc, Square rookSrc, eval::NnueUpdates& nnueUpdates);
         template <bool kUpdateKeys = true, bool kUpdateNnue = true>
         Piece enPassant(Piece pawn, Square src, Square dst, eval::NnueUpdates& nnueUpdates);
+
+        static constexpr usize pocketIndex(PieceType pt) {
+            return static_cast<usize>(pt);
+        }
+
+        void addToPocket(Color c, PieceType pt);
+        void removeFromPocket(Color c, PieceType pt);
+
+        void setPromoted(Square square, bool updateKey = true);
+        void clearPromoted(Square square, bool updateKey = true);
+        void movePromoted(Square src, Square dst, bool updateKey = true);
 
         [[nodiscard]] inline Bitboard calcCheckers() const {
             const auto color = stm();
@@ -579,9 +652,12 @@ namespace stormphrax {
         KingPair m_kings{};
 
         Color m_stm{};
+
+        std::array<std::array<u8, 5>, 2> m_pockets{};
+        Bitboard m_promoted{};
     };
 
-    static_assert(sizeof(Position) == 216);
+    static_assert(sizeof(Position) == 240);
 
     [[nodiscard]] Square squareFromString(std::string_view str);
 } // namespace stormphrax

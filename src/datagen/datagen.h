@@ -30,8 +30,11 @@ namespace stormphrax::datagen {
         const std::function<void()>& printUsage,
         std::string_view format,
         bool dfrc,
+        bool crazyhouse,
         std::string_view output,
         i32 threads,
-        std::optional<std::string_view> tbPath
+        std::optional<std::string_view> tbPath,
+        std::optional<u64> maxPositions,
+        bool datagenDropLmr
     );
 }

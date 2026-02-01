@@ -34,6 +34,8 @@
 #include "io.h"
 
 namespace stormphrax::eval::nnue {
+    using PocketCounts = std::array<std::array<u8, 5>, 2>;
+
     template <typename Ft>
     class Accumulator {
     private:
@@ -310,9 +312,14 @@ namespace stormphrax::eval::nnue {
     struct RefreshTableEntry {
         Acc accumulator{};
         std::array<BitboardSet, 2> bbs{};
+        std::array<PocketCounts, 2> pockets{};
 
         [[nodiscard]] BitboardSet& colorBbs(Color c) {
             return bbs[static_cast<i32>(c)];
+        }
+
+        [[nodiscard]] PocketCounts& colorPockets(Color c) {
+            return pockets[static_cast<i32>(c)];
         }
     };
 
@@ -324,6 +331,7 @@ namespace stormphrax::eval::nnue {
             for (auto& entry : table) {
                 entry.accumulator.initBoth(featureTransformer);
                 entry.bbs.fill(BitboardSet{});
+                entry.pockets.fill(PocketCounts{});
             }
         }
     };

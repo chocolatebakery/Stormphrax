@@ -31,8 +31,10 @@ namespace stormphrax::keys {
         constexpr usize kColor = 1;
         constexpr usize kCastling = 16;
         constexpr usize kEnPassant = 8;
+        constexpr usize kHand = 12 * 16;
+        constexpr usize kPromoted = 64;
 
-        constexpr auto kTotal = kPieceSquares + kColor + kCastling + kEnPassant;
+        constexpr auto kTotal = kPieceSquares + kColor + kCastling + kEnPassant + kHand + kPromoted;
     } // namespace sizes
 
     namespace offsets {
@@ -40,6 +42,8 @@ namespace stormphrax::keys {
         constexpr auto kColor = kPieceSquares + sizes::kPieceSquares;
         constexpr auto kCastling = kColor + sizes::kColor;
         constexpr auto kEnPassant = kCastling + sizes::kCastling;
+        constexpr auto kHand = kEnPassant + sizes::kEnPassant;
+        constexpr auto kPromoted = kHand + sizes::kHand;
     } // namespace offsets
 
     constexpr auto kKeys = [] {
@@ -107,5 +111,22 @@ namespace stormphrax::keys {
         }
 
         return kKeys[offsets::kEnPassant + squareFile(square)];
+    }
+
+    inline u64 hand(Piece piece, u8 count) {
+        if (piece == Piece::kNone) {
+            return 0;
+        }
+
+        assert(count < 16);
+        return kKeys[offsets::kHand + static_cast<usize>(piece) * 16 + count];
+    }
+
+    inline u64 promoted(Square square) {
+        if (square == Square::kNone) {
+            return 0;
+        }
+
+        return kKeys[offsets::kPromoted + static_cast<usize>(square)];
     }
 } // namespace stormphrax::keys

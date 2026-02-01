@@ -40,7 +40,7 @@ namespace stormphrax::see {
     inline i32 gain(const PositionBoards& boards, Move move) {
         const auto type = move.type();
 
-        if (type == MoveType::kCastling) {
+        if (type == MoveType::kCastling || type == MoveType::kDrop) {
             return 0;
         } else if (type == MoveType::kEnPassant) {
             return value(PieceType::kPawn);
@@ -76,6 +76,14 @@ namespace stormphrax::see {
 
     // basically ported from ethereal and weiss (their implementation is the same)
     inline bool see(const Position& pos, Move move, Score threshold) {
+        if (pos.crazyhouse()) {
+            threshold /= 2;
+        }
+
+        if (move.type() == MoveType::kDrop) {
+            return 0 >= threshold;
+        }
+
         const auto& boards = pos.boards();
         const auto& bbs = boards.bbs();
 

@@ -31,9 +31,18 @@ fmt::format_context::iterator fmt::formatter<stormphrax::Move>::format(
         return format_to(ctx.out(), "????");
     }
 
-    format_to(ctx.out(), "{}", value.fromSq());
-
     const auto type = value.type();
+
+    if (type == MoveType::kDrop) {
+        static constexpr auto kDropChars = std::array{'P', 'N', 'B', 'R', 'Q', 'K'};
+        const auto piece = value.promo();
+        const auto idx = static_cast<usize>(piece);
+        const auto ch = idx < kDropChars.size() ? kDropChars[idx] : '?';
+        format_to(ctx.out(), "{}@{}", ch, value.toSq());
+        return ctx.out();
+    }
+
+    format_to(ctx.out(), "{}", value.fromSq());
 
     if (type != MoveType::kCastling || g_opts.chess960) {
         format_to(ctx.out(), "{}", value.toSq());

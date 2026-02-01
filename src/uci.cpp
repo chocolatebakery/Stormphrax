@@ -221,7 +221,7 @@ namespace stormphrax {
                 kContemptRange.min(),
                 kContemptRange.max()
             );
-            println("option name UCI_Chess960 type check default {}", defaultOpts.chess960);
+            println("option name UCI_Variant type combo default crazyhouse var crazyhouse");
             println("option name UCI_ShowWDL type check default {}", defaultOpts.showWdl);
             println(
                 "option name EvalSharpness type spin default {} min {} max {}",
@@ -646,11 +646,21 @@ namespace stormphrax {
                         }
                     }
                 } else if (name == "uci_chess960") {
+                    opts::mutableOpts().chess960 = false;
+                    opts::mutableOpts().crazyhouse = true;
+                } else if (name == "uci_variant") {
                     if (!value.empty()) {
-                        if (const auto newChess960 = util::tryParseBool(value)) {
-                            opts::mutableOpts().chess960 = *newChess960;
+                        std::string variant = value;
+                        std::transform(variant.begin(), variant.end(), variant.begin(), [](auto c) {
+                            return static_cast<char>(std::tolower(c));
+                        });
+                        if (variant != "crazyhouse") {
+                            eprintln("only crazyhouse is supported in this build");
                         }
                     }
+                    opts::mutableOpts().crazyhouse = true;
+                    opts::mutableOpts().chess960 = false;
+                    opts::mutableOpts().syzygyEnabled = false;
                 } else if (name == "uci_showwdl") {
                     if (!value.empty()) {
                         if (const auto newShowWdl = util::tryParseBool(value)) {
@@ -695,6 +705,10 @@ namespace stormphrax {
                         }
                     }
                 } else if (name == "syzygypath") {
+                    if (g_opts.crazyhouse) {
+                        eprintln("syzygy tables are not supported for crazyhouse");
+                        return;
+                    }
                     m_tbInitialized = true;
                     opts::mutableOpts().syzygyEnabled = tb::init(value) == tb::InitStatus::kSuccess;
                 } else if (name == "syzygyprobedepth") {

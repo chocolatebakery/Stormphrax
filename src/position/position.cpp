@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cctype>
 
 #include "../attacks/attacks.h"
 #include "../cuckoo.h"
@@ -132,6 +133,51 @@ namespace stormphrax {
     template Piece Position::enPassant<false, true>(Piece, Square, Square, eval::NnueUpdates&);
     template Piece Position::enPassant<true, true>(Piece, Square, Square, eval::NnueUpdates&);
 
+    void Position::addToPocket(Color c, PieceType pt) {
+        assert(pt != PieceType::kNone && pt != PieceType::kKing);
+        auto& count = m_pockets[static_cast<i32>(c)][pocketIndex(pt)];
+        assert(count < 16);
+        m_keys.flipHand(colorPiece(pt, c), count);
+        ++count;
+    }
+
+    void Position::removeFromPocket(Color c, PieceType pt) {
+        assert(pt != PieceType::kNone && pt != PieceType::kKing);
+        auto& count = m_pockets[static_cast<i32>(c)][pocketIndex(pt)];
+        assert(count > 0);
+        --count;
+        m_keys.flipHand(colorPiece(pt, c), count);
+    }
+
+    void Position::setPromoted(Square square, bool updateKey) {
+        if (!m_promoted[square]) {
+            m_promoted |= squareBit(square);
+            if (updateKey) {
+                m_keys.flipPromoted(square);
+            }
+        }
+    }
+
+    void Position::clearPromoted(Square square, bool updateKey) {
+        if (m_promoted[square]) {
+            m_promoted ^= squareBit(square);
+            if (updateKey) {
+                m_keys.flipPromoted(square);
+            }
+        }
+    }
+
+    void Position::movePromoted(Square src, Square dst, bool updateKey) {
+        if (m_promoted[src]) {
+            m_promoted ^= squareBit(src);
+            m_promoted |= squareBit(dst);
+            if (updateKey) {
+                m_keys.flipPromoted(src);
+                m_keys.flipPromoted(dst);
+            }
+        }
+    }
+
     template <NnueUpdateAction kNnueAction>
     Position Position::applyMove(Move move, eval::NnueState* nnueState) const {
         static constexpr bool kUpdateNnue = kNnueAction != NnueUpdateAction::kNone;
@@ -166,56 +212,105 @@ namespace stormphrax {
 
         const auto moveType = move.type();
 
-        const auto moveSrc = move.fromSq();
-        const auto moveDst = move.toSq();
-
-        const auto moving = m_boards.pieceOn(moveSrc);
-        const auto movingType = pieceType(moving);
-
         eval::NnueUpdates updates{};
         auto captured = Piece::kNone;
+        bool capturedPromoted = false;
 
-        switch (moveType) {
-            case MoveType::kStandard:
-                captured = newPos.movePiece<true, kUpdateNnue>(moving, moveSrc, moveDst, updates);
-                break;
-            case MoveType::kPromotion:
-                captured = newPos.promotePawn<true, kUpdateNnue>(moving, moveSrc, moveDst, move.promo(), updates);
-                break;
-            case MoveType::kCastling:
-                newPos.castle<true, kUpdateNnue>(moving, moveSrc, moveDst, updates);
-                break;
-            case MoveType::kEnPassant:
-                captured = newPos.enPassant<true, kUpdateNnue>(moving, moveSrc, moveDst, updates);
-                break;
+        const auto moveDst = move.toSq();
+
+        if (moveType == MoveType::kDrop) {
+            const auto dropType = move.promo();
+            const auto dropped = colorPiece(dropType, stm);
+
+            if constexpr (kUpdateNnue) {
+                const auto prevCount = newPos.pocketCount(stm, dropType);
+                updates.pushPocketSub(stm, dropType, static_cast<u8>(prevCount - 1));
+            }
+
+            newPos.removeFromPocket(stm, dropType);
+            newPos.m_boards.setPiece(moveDst, dropped);
+
+            if constexpr (kUpdateNnue) {
+                updates.pushAdd(dropped, moveDst);
+            }
+
+            newPos.m_keys.flipPiece(dropped, moveDst);
+        } else {
+            const auto moveSrc = move.fromSq();
+            const auto moving = m_boards.pieceOn(moveSrc);
+            const auto movingType = pieceType(moving);
+
+            if (moveType == MoveType::kStandard || moveType == MoveType::kPromotion) {
+                capturedPromoted = m_promoted[moveDst];
+            }
+
+            switch (moveType) {
+                case MoveType::kStandard:
+                    captured = newPos.movePiece<true, kUpdateNnue>(moving, moveSrc, moveDst, updates);
+                    break;
+                case MoveType::kPromotion:
+                    captured = newPos.promotePawn<true, kUpdateNnue>(moving, moveSrc, moveDst, move.promo(), updates);
+                    break;
+                case MoveType::kCastling:
+                    newPos.castle<true, kUpdateNnue>(moving, moveSrc, moveDst, updates);
+                    break;
+                case MoveType::kEnPassant:
+                    captured = newPos.enPassant<true, kUpdateNnue>(moving, moveSrc, moveDst, updates);
+                    break;
+                case MoveType::kDrop:
+                    __builtin_unreachable();
+            }
+
+            if (movingType == PieceType::kRook) {
+                newPos.m_castlingRooks.color(stm).unset(moveSrc);
+            } else if (movingType == PieceType::kKing) {
+                newPos.m_castlingRooks.color(stm).clear();
+            } else if (moving == Piece::kBlackPawn && move.fromSqRank() == 6 && move.toSqRank() == 4) {
+                newPos.m_enPassant = toSquare(5, move.fromSqFile());
+                newPos.m_keys.flipEp(newPos.m_enPassant);
+            } else if (moving == Piece::kWhitePawn && move.fromSqRank() == 1 && move.toSqRank() == 3) {
+                newPos.m_enPassant = toSquare(2, move.fromSqFile());
+                newPos.m_keys.flipEp(newPos.m_enPassant);
+            }
+
+            if (captured != Piece::kNone && pieceType(captured) == PieceType::kRook) {
+                newPos.m_castlingRooks.color(nstm).unset(moveDst);
+            }
         }
 
         assert(pieceTypeOrNone(captured) != PieceType::kKing);
 
-        if constexpr (kUpdateNnue) {
-            nnueState->pushUpdates<kNnueAction == NnueUpdateAction::kApply>(updates, m_boards.bbs(), m_kings);
-        }
-
-        if (movingType == PieceType::kRook) {
-            newPos.m_castlingRooks.color(stm).unset(moveSrc);
-        } else if (movingType == PieceType::kKing) {
-            newPos.m_castlingRooks.color(stm).clear();
-        } else if (moving == Piece::kBlackPawn && move.fromSqRank() == 6 && move.toSqRank() == 4) {
-            newPos.m_enPassant = toSquare(5, move.fromSqFile());
-            newPos.m_keys.flipEp(newPos.m_enPassant);
-        } else if (moving == Piece::kWhitePawn && move.fromSqRank() == 1 && move.toSqRank() == 3) {
-            newPos.m_enPassant = toSquare(2, move.fromSqFile());
-            newPos.m_keys.flipEp(newPos.m_enPassant);
-        }
-
-        if (captured == Piece::kNone && pieceType(moving) != PieceType::kPawn) {
-            ++newPos.m_halfmove;
+        if (moveType == MoveType::kDrop) {
+            if (move.promo() == PieceType::kPawn) {
+                newPos.m_halfmove = 0;
+            } else {
+                ++newPos.m_halfmove;
+            }
         } else {
-            newPos.m_halfmove = 0;
+            const auto moving = m_boards.pieceOn(move.fromSq());
+            if (captured == Piece::kNone && pieceType(moving) != PieceType::kPawn) {
+                ++newPos.m_halfmove;
+            } else {
+                newPos.m_halfmove = 0;
+            }
         }
 
-        if (captured != Piece::kNone && pieceType(captured) == PieceType::kRook) {
-            newPos.m_castlingRooks.color(nstm).unset(moveDst);
+        if (newPos.crazyhouse() && captured != Piece::kNone) {
+            const auto addType = capturedPromoted ? PieceType::kPawn : pieceType(captured);
+            if constexpr (kUpdateNnue) {
+                const auto prevCount = newPos.pocketCount(stm, addType);
+                updates.pushPocketAdd(stm, addType, prevCount);
+            }
+            newPos.addToPocket(stm, addType);
+        }
+
+        if constexpr (kUpdateNnue) {
+            nnueState->pushUpdates<kNnueAction == NnueUpdateAction::kApply>(
+                updates,
+                newPos.m_boards.bbs(),
+                newPos.m_kings,
+                newPos.m_pockets
+            );
         }
 
         if (newPos.m_castlingRooks != m_castlingRooks) {
@@ -236,6 +331,28 @@ namespace stormphrax {
         assert(move != kNullMove);
 
         const auto us = stm();
+
+        if (move.type() == MoveType::kDrop) {
+            if (!crazyhouse()) {
+                return false;
+            }
+
+            const auto dst = move.toSq();
+            if (dst == Square::kNone || m_boards.pieceOn(dst) != Piece::kNone) {
+                return false;
+            }
+
+            const auto dropType = move.promo();
+            if (dropType == PieceType::kNone || dropType == PieceType::kKing) {
+                return false;
+            }
+
+            if (dropType == PieceType::kPawn && (boards::kRank1 | boards::kRank8)[dst]) {
+                return false;
+            }
+
+            return pocketCount(us, dropType) > 0;
+        }
 
         const auto src = move.fromSq();
         const auto srcPiece = m_boards.pieceOn(src);
@@ -423,6 +540,34 @@ namespace stormphrax {
 
         const auto king = m_kings.color(us);
 
+        if (move.type() == MoveType::kDrop) {
+            if (!crazyhouse()) {
+                return false;
+            }
+
+            if (m_checkers.multiple()) {
+                return false;
+            }
+
+            if (m_checkers.empty()) {
+                return true;
+            }
+
+            const auto checker = m_checkers.lowestSquare();
+            const auto checkerPiece = m_boards.pieceOn(checker);
+            if (checkerPiece == Piece::kNone) {
+                return false;
+            }
+
+            const auto checkerType = pieceType(checkerPiece);
+            if (checkerType == PieceType::kKnight || checkerType == PieceType::kPawn || checkerType == PieceType::kKing)
+            {
+                return false;
+            }
+
+            return rayBetween(king, checker)[dst];
+        }
+
         if (move.type() == MoveType::kCastling) {
             const auto kingDst = toSquare(move.fromSqRank(), move.fromSqFile() < move.toSqFile() ? 6 : 2);
             return !m_threats[kingDst] && !(g_opts.chess960 && pinned(us)[dst]);
@@ -558,6 +703,10 @@ namespace stormphrax {
             }
         }
 
+        if (crazyhouse() && (hasPocketPieces(Color::kWhite) || hasPocketPieces(Color::kBlack))) {
+            return false;
+        }
+
         const auto& bbs = this->bbs();
 
         if (!bbs.pawns().empty() || !bbs.majors().empty()) {
@@ -594,6 +743,7 @@ namespace stormphrax {
 
         for (i32 rank = 7; rank >= 0; --rank) {
             for (i32 file = 0; file < 8; ++file) {
+                const auto square = toSquare(rank, file);
                 if (m_boards.pieceAt(rank, file) == Piece::kNone) {
                     u32 emptySquares = 1;
                     for (; file < 7 && m_boards.pieceAt(rank, file + 1) == Piece::kNone; ++file, ++emptySquares) {}
@@ -601,12 +751,36 @@ namespace stormphrax {
                     fmt::format_to(itr, "{}", static_cast<char>('0' + emptySquares));
                 } else {
                     fmt::format_to(itr, "{}", m_boards.pieceAt(rank, file));
+                    if (crazyhouse() && isPromoted(square)) {
+                        fmt::format_to(itr, "~");
+                    }
                 }
             }
 
             if (rank > 0) {
                 fmt::format_to(itr, "/");
             }
+        }
+
+        if (crazyhouse()) {
+            static constexpr auto kPocketOrder = std::array{
+                PieceType::kQueen,
+                PieceType::kRook,
+                PieceType::kBishop,
+                PieceType::kKnight,
+                PieceType::kPawn
+            };
+
+            fmt::format_to(itr, "[");
+            for (const auto color : {Color::kWhite, Color::kBlack}) {
+                for (const auto pt : kPocketOrder) {
+                    const auto count = pocketCount(color, pt);
+                    for (u8 i = 0; i < count; ++i) {
+                        fmt::format_to(itr, "{}", colorPiece(pt, color));
+                    }
+                }
+            }
+            fmt::format_to(itr, "]");
         }
 
         fmt::format_to(itr, "{}", stm() == Color::kWhite ? " w " : " b ");
@@ -696,6 +870,10 @@ namespace stormphrax {
 
         m_boards.movePiece(src, dst, piece);
 
+        if (m_promoted[src]) {
+            movePromoted(src, dst, kUpdateKey);
+        }
+
         if (pieceType(piece) == PieceType::kKing) {
             const auto color = pieceColor(piece);
             m_kings.color(color) = dst;
@@ -721,6 +899,10 @@ namespace stormphrax {
 
             m_boards.removePiece(dst, captured);
 
+            if (m_promoted[dst]) {
+                clearPromoted(dst, kUpdateKey);
+            }
+
             // NNUE update done below
 
             if constexpr (kUpdateKey) {
@@ -729,6 +911,10 @@ namespace stormphrax {
         }
 
         m_boards.movePiece(src, dst, piece);
+
+        if (m_promoted[src]) {
+            movePromoted(src, dst, kUpdateKey);
+        }
 
         if (pieceType(piece) == PieceType::kKing) {
             const auto color = pieceColor(piece);
@@ -778,6 +964,10 @@ namespace stormphrax {
 
             m_boards.removePiece(dst, captured);
 
+            if (m_promoted[dst]) {
+                clearPromoted(dst, kUpdateKey);
+            }
+
             if constexpr (kUpdateNnue) {
                 nnueUpdates.pushSub(captured, dst);
             }
@@ -788,6 +978,8 @@ namespace stormphrax {
         }
 
         m_boards.moveAndChangePiece(src, dst, pawn, promo);
+
+        setPromoted(dst, kUpdateKey);
 
         if constexpr (kUpdateNnue || kUpdateKey) {
             const auto coloredPromo = copyPieceColor(pawn, promo);
@@ -883,6 +1075,10 @@ namespace stormphrax {
             m_keys.flipPiece(enemyPawn, captureSquare);
         }
 
+        if (m_promoted[captureSquare]) {
+            clearPromoted(captureSquare, kUpdateKey);
+        }
+
         return enemyPawn;
     }
 
@@ -890,6 +1086,7 @@ namespace stormphrax {
         m_boards.regenFromBbs();
 
         m_keys.clear();
+        m_promoted &= m_boards.bbs().occupancy();
 
         for (u32 rank = 0; rank < 8; ++rank) {
             for (u32 file = 0; file < 8; ++file) {
@@ -900,6 +1097,27 @@ namespace stormphrax {
                     }
 
                     m_keys.flipPiece(piece, toSquare(rank, file));
+                }
+            }
+        }
+
+        if (crazyhouse() && !m_promoted.empty()) {
+            auto promoted = m_promoted;
+            while (promoted) {
+                const auto square = promoted.popLowestSquare();
+                m_keys.flipPromoted(square);
+            }
+        }
+
+        if (crazyhouse()) {
+            for (const auto color : {Color::kBlack, Color::kWhite}) {
+                const auto cidx = static_cast<i32>(color);
+                for (i32 pt = 0; pt <= static_cast<i32>(PieceType::kQueen); ++pt) {
+                    const auto pieceType = static_cast<PieceType>(pt);
+                    const auto count = m_pockets[cidx][pocketIndex(pieceType)];
+                    for (u8 i = 0; i < count; ++i) {
+                        m_keys.flipHand(colorPiece(pieceType, color), i);
+                    }
                 }
             }
         }
@@ -1001,6 +1219,17 @@ namespace stormphrax {
             return kNullMove;
         }
 
+        if (move.length() == 4 && move[1] == '@') {
+            const auto dst = squareFromString(move.substr(2, 2));
+            const auto pt = pieceTypeFromChar(static_cast<char>(std::tolower(move[0])));
+
+            if (dst == Square::kNone || pt == PieceType::kNone || pt == PieceType::kKing) {
+                return kNullMove;
+            }
+
+            return Move::drop(pt, dst);
+        }
+
         const auto src = squareFromString(move.substr(0, 2));
         const auto dst = squareFromString(move.substr(2, 2));
 
@@ -1052,6 +1281,8 @@ namespace stormphrax {
 
         pos.m_stm = Color::kWhite;
         pos.m_fullmove = 1;
+        pos.m_pockets = {};
+        pos.m_promoted = Bitboard{};
 
         pos.regen();
 
@@ -1069,8 +1300,16 @@ namespace stormphrax {
 
         u32 rankIdx = 0;
 
+        auto boardPart = fen[0];
+        std::string_view pocketPart{};
+
+        if (const auto bracketPos = boardPart.find('['); bracketPos != std::string_view::npos) {
+            pocketPart = boardPart.substr(bracketPos);
+            boardPart = boardPart.substr(0, bracketPos);
+        }
+
         std::vector<std::string_view> ranks{};
-        split::split(ranks, fen[0], '/');
+        split::split(ranks, boardPart, '/');
 
         for (const auto rank : ranks) {
             if (rankIdx >= 8) {
@@ -1079,6 +1318,7 @@ namespace stormphrax {
             }
 
             u32 fileIdx = 0;
+            Square lastPieceSquare = Square::kNone;
 
             for (const auto c : rank) {
                 if (fileIdx >= 8) {
@@ -1088,8 +1328,16 @@ namespace stormphrax {
 
                 if (const auto emptySquares = util::tryParseDigit(c)) {
                     fileIdx += *emptySquares;
+                    lastPieceSquare = Square::kNone;
+                } else if (c == '~') {
+                    if (lastPieceSquare == Square::kNone) {
+                        eprintln("unexpected promoted marker");
+                        return {};
+                    }
+                    pos.setPromoted(lastPieceSquare, false);
                 } else if (const auto piece = pieceFromChar(c); piece != Piece::kNone) {
-                    pos.m_boards.setPiece(toSquare(7 - rankIdx, fileIdx), piece);
+                    lastPieceSquare = toSquare(7 - rankIdx, fileIdx);
+                    pos.m_boards.setPiece(lastPieceSquare, piece);
                     ++fileIdx;
                 } else {
                     eprintln("invalid piece character {}", c);
@@ -1121,9 +1369,32 @@ namespace stormphrax {
             return {};
         }
 
-        if (bbs.occupancy().popcount() > 32) {
+        if (!pos.crazyhouse() && bbs.occupancy().popcount() > 32) {
             eprintln("too many pieces");
             return {};
+        }
+
+        if (!pocketPart.empty()) {
+            for (const auto c : pocketPart) {
+                if (c == '[' || c == ']' || c == '-') {
+                    continue;
+                }
+
+                const auto piece = pieceFromChar(c);
+                if (piece == Piece::kNone || pieceType(piece) == PieceType::kKing) {
+                    eprintln("invalid pocket piece {}", c);
+                    return {};
+                }
+
+                const auto color = pieceColor(piece);
+                const auto pt = pieceType(piece);
+                auto& count = pos.m_pockets[static_cast<i32>(color)][pocketIndex(pt)];
+                if (count >= 16) {
+                    eprintln("too many pocket pieces");
+                    return {};
+                }
+                ++count;
+            }
         }
 
         const auto color = fen[1];

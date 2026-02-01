@@ -27,6 +27,11 @@
 namespace stormphrax::eval::nnue::features {
     struct [[maybe_unused]] SingleBucket {
         static constexpr u32 kInputSize = 768;
+        static constexpr u32 kBoardInputSize = kInputSize;
+        static constexpr u32 kPocketSlotsCount = 0;
+        static constexpr u32 kPocketPieceTypes = 0;
+        static constexpr u32 kPocketFeatureCount = 0;
+        static constexpr bool kHasPockets = false;
 
         static constexpr u32 kBucketCount = 1;
         static constexpr u32 kRefreshTableSize = 1;
@@ -64,6 +69,11 @@ namespace stormphrax::eval::nnue::features {
 
     public:
         static constexpr u32 kInputSize = 768;
+        static constexpr u32 kBoardInputSize = kInputSize;
+        static constexpr u32 kPocketSlotsCount = 0;
+        static constexpr u32 kPocketPieceTypes = 0;
+        static constexpr u32 kPocketFeatureCount = 0;
+        static constexpr bool kHasPockets = false;
 
         static constexpr auto kBucketCount = *std::ranges::max_element(kBuckets) + 1;
         static constexpr auto kRefreshTableSize = kBucketCount;
@@ -154,6 +164,11 @@ namespace stormphrax::eval::nnue::features {
 
     public:
         static constexpr u32 kInputSize = 768;
+        static constexpr u32 kBoardInputSize = kInputSize;
+        static constexpr u32 kPocketSlotsCount = 0;
+        static constexpr u32 kPocketPieceTypes = 0;
+        static constexpr u32 kPocketFeatureCount = 0;
+        static constexpr bool kHasPockets = false;
 
         static constexpr auto kBucketCount = *std::ranges::max_element(kBuckets) + 1;
         static constexpr auto kRefreshTableSize = kBucketCount * 2;
@@ -237,7 +252,22 @@ namespace stormphrax::eval::nnue::features {
     template <MirroredKingSide kSide, u32... kBucketIndices>
     struct [[maybe_unused]] KingBucketsMergedMirrored : public KingBucketsMirrored<kSide, kBucketIndices...> {
         static constexpr u32 kInputSize = 704;
+        static constexpr u32 kBoardInputSize = kInputSize;
+        static constexpr u32 kPocketSlotsCount = 0;
+        static constexpr u32 kPocketPieceTypes = 0;
+        static constexpr u32 kPocketFeatureCount = 0;
+        static constexpr bool kHasPockets = false;
         static constexpr bool kMergedKings = true;
+    };
+
+    template <typename Base, u32 kPocketSlots = 16>
+    struct [[maybe_unused]] WithPockets : public Base {
+        static constexpr u32 kBoardInputSize = Base::kInputSize;
+        static constexpr u32 kPocketSlotsCount = kPocketSlots;
+        static constexpr u32 kPocketPieceTypes = 5;
+        static constexpr u32 kPocketFeatureCount = kPocketPieceTypes * kPocketSlotsCount * 2;
+        static constexpr u32 kInputSize = kBoardInputSize + kPocketFeatureCount;
+        static constexpr bool kHasPockets = true;
     };
 
     template <MirroredKingSide kSide>

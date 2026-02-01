@@ -47,4 +47,33 @@ namespace stormphrax::datagen {
 
         return m_positions.size();
     }
+
+    CrazyhouseMarlinformat::CrazyhouseMarlinformat() {
+        m_positions.reserve(256);
+    }
+
+    void CrazyhouseMarlinformat::start(const Position& initialPosition) {
+        m_positions.clear();
+        m_curr = initialPosition;
+    }
+
+    void CrazyhouseMarlinformat::push(bool filtered, Move move, Score score) {
+        if (!filtered) {
+            m_positions.push_back(marlinformat::PackedCrazyhouseBoard::pack(m_curr, static_cast<i16>(score)));
+        }
+        m_curr = m_curr.applyMove(move);
+    }
+
+    usize CrazyhouseMarlinformat::writeAllWithOutcome(std::ostream& stream, Outcome outcome) {
+        for (auto& board : m_positions) {
+            board.wdl = outcome;
+        }
+
+        stream.write(
+            reinterpret_cast<const char*>(m_positions.data()),
+            static_cast<std::streamsize>(m_positions.size() * sizeof(marlinformat::PackedCrazyhouseBoard))
+        );
+
+        return m_positions.size();
+    }
 } // namespace stormphrax::datagen

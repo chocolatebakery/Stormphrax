@@ -370,7 +370,7 @@ namespace stormphrax {
                 m_continuations,
                 m_ply,
                 m_pos.threats(),
-                m_pos.boards().pieceOn(move.move.fromSq()),
+                m_pos.movingPiece(move.move),
                 move.move
             );
         }
@@ -388,12 +388,14 @@ namespace stormphrax {
                 return static_cast<u64>(widened) << 32;
             };
 
-            auto best = toU64(m_data.moves[m_idx].score) | (256 - m_idx);
-            for (auto i = m_idx + 1; i < m_end; ++i) {
-                const auto curr = toU64(m_data.moves[i].score) | (256 - i);
+            const auto maxIndex = m_end - 1;
+
+            auto best = toU64(m_data.moves[m_idx].score) | static_cast<u64>(maxIndex - m_idx);
+            for (u32 i = m_idx + 1; i < m_end; ++i) {
+                const auto curr = toU64(m_data.moves[i].score) | static_cast<u64>(maxIndex - i);
                 best = std::max(best, curr);
             }
-            const auto bestIdx = 256 - (best & 0xFFFFFFFF);
+            const auto bestIdx = static_cast<u32>(maxIndex - static_cast<u32>(best & 0xFFFFFFFFu));
             if (bestIdx != m_idx) {
                 std::swap(m_data.moves[m_idx], m_data.moves[bestIdx]);
             }

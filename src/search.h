@@ -91,7 +91,7 @@ namespace stormphrax::search {
 
     struct MoveStackEntry {
         MovegenData movegenData{};
-        StaticVector<Move, 256> failLowQuiets{};
+        StaticVector<Move, kDefaultMoveListCapacity> failLowQuiets{};
         StaticVector<Move, 32> failLowNoisies{};
     };
 
@@ -143,6 +143,7 @@ namespace stormphrax::search {
         SearchData search{};
 
         bool datagen{false};
+        bool datagenDropLmr{false};
 
         i32 minNmpPly{};
 
@@ -192,7 +193,7 @@ namespace stormphrax::search {
         ) {
             assert(ply <= kMaxDepth);
 
-            const auto moving = pos.boards().pieceOn(move.fromSq());
+            const auto moving = pos.movingPiece(move);
 
             stack[ply].move = move;
             conthist[ply] = &history.contTable(moving, move.toSq());

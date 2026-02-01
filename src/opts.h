@@ -39,6 +39,7 @@ namespace stormphrax {
             u32 threads{kDefaultThreadCount};
 
             bool chess960{false};
+            bool crazyhouse{true};
             bool showWdl{true};
             bool showCurrMove{false};
 
@@ -49,7 +50,7 @@ namespace stormphrax {
             bool softNodes{false};
             i32 softNodeHardLimitMultiplier{1678};
 
-            bool enableWeirdTcs{false};
+            bool enableWeirdTcs{true};
 
             bool syzygyEnabled{false};
             i32 syzygyProbeDepth{1};

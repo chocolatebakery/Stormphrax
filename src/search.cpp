@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cmath>
 #include <tuple>
+#include <unordered_map>
 
 #include "3rdparty/pyrrhic/tbprobe.h"
 #include "limit/trivial.h"
@@ -68,6 +69,31 @@ namespace stormphrax::search {
 
         [[nodiscard]] constexpr bool isWin(Score score) {
             return std::abs(score) > kScoreWin;
+        }
+
+        [[nodiscard]] inline i32 chebyshevDistance(Square a, Square b) {
+            const auto dr = std::abs(squareRank(a) - squareRank(b));
+            const auto df = std::abs(squareFile(a) - squareFile(b));
+            return std::max(dr, df);
+        }
+
+        [[nodiscard]] inline Bitboard dropAttacks(PieceType piece, Square to, Color us, Bitboard occ) {
+            switch (piece) {
+                case PieceType::kPawn:
+                    return attacks::getPawnAttacks(to, us);
+                case PieceType::kKnight:
+                    return attacks::getKnightAttacks(to);
+                case PieceType::kBishop:
+                    return attacks::getBishopAttacks(to, occ);
+                case PieceType::kRook:
+                    return attacks::getRookAttacks(to, occ);
+                case PieceType::kQueen:
+                    return attacks::getQueenAttacks(to, occ);
+                case PieceType::kKing:
+                    return attacks::getKingAttacks(to);
+                default:
+                    return Bitboard{};
+            }
         }
     } // namespace
 
@@ -220,7 +246,7 @@ namespace stormphrax::search {
         auto thread = std::make_unique<ThreadData>();
 
         thread->rootPos = pos;
-        thread->nnueState.reset(thread->rootPos.bbs(), thread->rootPos.kings());
+        thread->nnueState.reset(thread->rootPos.bbs(), thread->rootPos.kings(), thread->rootPos.pockets());
 
         if (initRootMoveList(thread->rootPos) == RootStatus::kNoLegalMoves) {
             return;
@@ -352,7 +378,7 @@ namespace stormphrax::search {
 
             std::ranges::copy(m_setupInfo.keyHistory, std::back_inserter(thread.keyHistory));
 
-            thread.nnueState.reset(thread.rootPos.bbs(), thread.rootPos.kings());
+            thread.nnueState.reset(thread.rootPos.bbs(), thread.rootPos.kings(), thread.rootPos.pockets());
 
             m_setupBarrier.arriveAndWait();
         }
@@ -536,7 +562,6 @@ namespace stormphrax::search {
             return 0;
         }
 
-        const auto& boards = pos.boards();
         const auto& bbs = pos.bbs();
 
         if constexpr (!kRootNode) {
@@ -605,7 +630,7 @@ namespace stormphrax::search {
                         thread.conthist,
                         ply,
                         pos.threats(),
-                        boards.pieceOn(ttEntry.move.fromSq()),
+                        pos.movingPiece(ttEntry.move),
                         ttEntry.move,
                         bonus
                     );
@@ -878,7 +903,7 @@ namespace stormphrax::search {
             const bool quietOrLosing = generator.stage() > MovegenStage::kGoodNoisy;
 
             const bool noisy = pos.isNoisy(move);
-            const auto moving = boards.pieceOn(move.fromSq());
+            const auto moving = pos.movingPiece(move);
 
             const auto captured = pos.captureTarget(move);
 
@@ -980,6 +1005,11 @@ namespace stormphrax::search {
             const auto [newPos, guard] = thread.applyMove(pos, ply, move);
 
             const bool givesCheck = newPos.isCheck();
+            const bool isDrop = move.type() == MoveType::kDrop;
+
+            if (!kRootNode && givesCheck) {
+                extension += tunable::checkExtension();
+            }
 
             Score score{};
 
@@ -998,6 +1028,22 @@ namespace stormphrax::search {
                     r -= givesCheck * lmrCheckReductionScale();
                     r += cutnode * lmrCutnodeReductionScale();
                     r += (curr.ttpv && ttHit && ttEntry.score <= alpha) * lmrTtpvFailLowReductionScale();
+
+                    const bool allowDropLmr = !thread.datagen || thread.datagenDropLmr;
+
+                    if (isDrop && pos.crazyhouse() && allowDropLmr) { //para desligar quando NNUE ficar mais forte
+                        const auto dst = move.toSq();
+                        const auto enemyKing = pos.oppKing(us);
+                        const auto dist = chebyshevDistance(dst, enemyKing);
+
+                        if (dist < 3 && !pos.attackersTo(dst, us).empty()) {
+                            r -= lmrDropNearKingReduction() * 128;
+                        }
+
+                        const auto attacks =
+                            dropAttacks(move.promo(), dst, us, bbs.occupancy()) & bbs.occupancy(pos.nstm());
+                        r -= static_cast<i32>(attacks.popcount()) * lmrDropAttackReduction() * 128;
+                    }
 
                     if (complexity) {
                         const bool highComplexity = *complexity > lmrHighComplexityThreshold();
@@ -1154,7 +1200,7 @@ namespace stormphrax::search {
                     thread.conthist,
                     ply,
                     pos.threats(),
-                    pos.boards().pieceOn(bestMove.fromSq()),
+                    pos.movingPiece(bestMove),
                     bestMove,
                     bonus
                 );
@@ -1164,7 +1210,7 @@ namespace stormphrax::search {
                         thread.conthist,
                         ply,
                         pos.threats(),
-                        pos.boards().pieceOn(prevQuiet.fromSq()),
+                        pos.movingPiece(prevQuiet),
                         prevQuiet,
                         penalty
                     );
@@ -1317,19 +1363,21 @@ namespace stormphrax::search {
                 continue;
             }
 
+            const bool isDrop = pos.crazyhouse() && move.type() == MoveType::kDrop;
+
             if (bestScore > -kScoreWin) {
-                if (!inCheck && futility <= alpha && !see::see(pos, move, 1)) {
+                if (!isDrop && !inCheck && futility <= alpha && !see::see(pos, move, 1)) {
                     if (bestScore < futility) {
                         bestScore = futility;
                     }
                     continue;
                 }
 
-                if (legalMoves >= 2) {
+                if (!isDrop && legalMoves >= 2) {
                     break;
                 }
 
-                if (!see::see(pos, move, qsearchSeeThreshold())) {
+                if (!isDrop && !see::see(pos, move, qsearchSeeThreshold())) {
                     continue;
                 }
             }
@@ -1500,7 +1548,7 @@ namespace stormphrax::search {
             return (thread.pvMove().score - lowestRootScore + threadWeightScoreOffset()) * thread.depthCompleted;
         };
 
-        std::unordered_map<u16, i32> moveVotes{};
+        std::unordered_map<u32, i32> moveVotes{};
 
         const auto bestMoveVotes = [&](const ThreadData& thread) -> i32& {
             return moveVotes[thread.pvMove().pv.moves[0].data()];

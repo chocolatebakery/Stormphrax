@@ -47,6 +47,9 @@ namespace stormphrax::datagen {
 
     namespace {
         std::atomic_bool s_stop{false};
+        std::atomic<u64> s_totalPositions{0};
+        u64 s_maxPositions = 0;
+        bool s_datagenDropLmr = false;
 
         void initCtrlCHandler() {
             util::signal::setCtrlCHandler([] { s_stop.store(true, std::memory_order::seq_cst); });
@@ -111,21 +114,36 @@ namespace stormphrax::datagen {
         }
 
         constexpr usize kVerificationHardNodeLimit = 25165814;
-
         constexpr usize kDatagenSoftNodeLimit = 24000;
         constexpr usize kDatagenHardNodeLimit = 8388608;
 
-        constexpr Score kVerificationScoreLimit = 500;
+        constexpr i32 kVerificationMaxDepth = 10;
+        constexpr i32 kDatagenMaxDepth = kMaxDepth;
+
+        // Balanced defaults for Crazyhouse datagen (stronger NNUE).
+        constexpr usize kVerificationHardNodeLimitCrazyhouse = 1'000'000;
+        constexpr usize kDatagenSoftNodeLimitCrazyhouse = 20'000;
+        constexpr usize kDatagenHardNodeLimitCrazyhouse = 1'000'000;
+
+        constexpr i32 kVerificationMaxDepthCrazyhouse = 8;
+        constexpr i32 kDatagenMaxDepthCrazyhouse = 8;
+
+        constexpr Score kVerificationScoreLimit = 1000;
 
         constexpr Score kWinAdjMinScore = 1250;
+        constexpr Score kWinAdjMinScoreCrazyhouse = 1500;
         constexpr Score kDrawAdjMaxScore = 10;
 
         constexpr u32 kDrawAdjMinPlies = 70;
 
         constexpr u32 kWinAdjPlyCount = 5;
+        constexpr u32 kWinAdjPlyCountCrazyhouse = 4;
         constexpr u32 kDrawAdjPlyCount = 10;
 
-        constexpr i32 kReportInterval = 512;
+        constexpr u32 kDatagenMaxPlies = 400;
+        constexpr u32 kDatagenMaxPliesCrazyhouse = 400;
+
+        constexpr i32 kReportInterval = 10;
 
         template <OutputFormat Format>
         void runThread(u32 id, bool dfrc, u64 seed, const std::filesystem::path& outDir) {
@@ -147,6 +165,7 @@ namespace stormphrax::datagen {
 
             auto thread = std::make_unique<search::ThreadData>();
             thread->datagen = true;
+            thread->datagenDropLmr = s_datagenDropLmr;
 
             auto& pos = thread->rootPos;
 
@@ -212,17 +231,27 @@ namespace stormphrax::datagen {
 
                 output.start(pos);
 
-                thread->nnueState.reset(pos.bbs(), pos.kings());
+                thread->nnueState.reset(pos.bbs(), pos.kings(), pos.pockets());
 
-                searcher.setDatagenMaxDepth(10);
+                const bool isCrazyhouse = g_opts.crazyhouse;
+                const bool allowWinAdjudication = true;
+                const bool winAdjOnlyMate = isCrazyhouse;
+                const bool allowDrawAdjudication = !isCrazyhouse;
+                const u32 maxPlies = isCrazyhouse ? kDatagenMaxPliesCrazyhouse : kDatagenMaxPlies;
+                const Score winAdjMinScore = isCrazyhouse ? kWinAdjMinScoreCrazyhouse : kWinAdjMinScore;
+                const u32 winAdjPlyCount = isCrazyhouse ? kWinAdjPlyCountCrazyhouse : kWinAdjPlyCount;
+
+                searcher.setDatagenMaxDepth(isCrazyhouse ? kVerificationMaxDepthCrazyhouse : kVerificationMaxDepth);
                 limiter.setSoftNodeLimit(std::numeric_limits<usize>::max());
-                limiter.setHardNodeLimit(kVerificationHardNodeLimit);
+                limiter.setHardNodeLimit(
+                    isCrazyhouse ? kVerificationHardNodeLimitCrazyhouse : kVerificationHardNodeLimit
+                );
 
                 const auto [firstScore, normFirstScore] = searcher.runDatagenSearch(*thread);
 
-                searcher.setDatagenMaxDepth(kMaxDepth);
-                limiter.setSoftNodeLimit(kDatagenSoftNodeLimit);
-                limiter.setHardNodeLimit(kDatagenHardNodeLimit);
+                searcher.setDatagenMaxDepth(isCrazyhouse ? kDatagenMaxDepthCrazyhouse : kDatagenMaxDepth);
+                limiter.setSoftNodeLimit(isCrazyhouse ? kDatagenSoftNodeLimitCrazyhouse : kDatagenSoftNodeLimit);
+                limiter.setHardNodeLimit(isCrazyhouse ? kDatagenHardNodeLimitCrazyhouse : kDatagenHardNodeLimit);
 
                 if (std::abs(normFirstScore) > kVerificationScoreLimit) {
                     --game;
@@ -253,20 +282,22 @@ namespace stormphrax::datagen {
                         break;
                     }
 
-                    assert(pos.boards().pieceOn(move.fromSq()) != Piece::kNone);
+                    assert(move.type() == MoveType::kDrop || pos.boards().pieceOn(move.fromSq()) != Piece::kNone);
 
-                    if (std::abs(score) > kScoreWin) {
+                    const bool mateScore = std::abs(score) >= kScoreMaxMate;
+                    if (mateScore) {
                         outcome = score > 0 ? Outcome::kWhiteWin : Outcome::kWhiteLoss;
                     } else {
-                        if (normScore > kWinAdjMinScore) {
+                        if (!winAdjOnlyMate && allowWinAdjudication && normScore > winAdjMinScore) {
                             ++winPlies;
                             lossPlies = 0;
                             drawPlies = 0;
-                        } else if (normScore < -kWinAdjMinScore) {
+                        } else if (!winAdjOnlyMate && allowWinAdjudication && normScore < -winAdjMinScore) {
                             winPlies = 0;
                             ++lossPlies;
                             drawPlies = 0;
-                        } else if (thread->rootPos.plyFromStartpos() >= kDrawAdjMinPlies
+                        } else if (allowDrawAdjudication
+                                   && thread->rootPos.plyFromStartpos() >= kDrawAdjMinPlies
                                    && std::abs(normScore) < kDrawAdjMaxScore)
                         {
                             winPlies = 0;
@@ -278,11 +309,11 @@ namespace stormphrax::datagen {
                             drawPlies = 0;
                         }
 
-                        if (winPlies >= kWinAdjPlyCount) {
+                        if (allowWinAdjudication && winPlies >= winAdjPlyCount) {
                             outcome = Outcome::kWhiteWin;
-                        } else if (lossPlies >= kWinAdjPlyCount) {
+                        } else if (allowWinAdjudication && lossPlies >= winAdjPlyCount) {
                             outcome = Outcome::kWhiteLoss;
-                        } else if (drawPlies >= kDrawAdjPlyCount) {
+                        } else if (allowDrawAdjudication && drawPlies >= kDrawAdjPlyCount) {
                             outcome = Outcome::kDraw;
                         }
                     }
@@ -314,6 +345,10 @@ namespace stormphrax::datagen {
 
                     output.push(filtered, move, score);
 
+                    if (!outcome && pos.plyFromStartpos() >= maxPlies) {
+                        outcome = score >= 0 ? Outcome::kWhiteWin : Outcome::kWhiteLoss;
+                    }
+
                     if (outcome) {
                         break;
                     }
@@ -323,6 +358,11 @@ namespace stormphrax::datagen {
 
                 const auto positions = output.writeAllWithOutcome(out, *outcome);
                 totalPositions += positions;
+                const auto globalTotal =
+                    s_totalPositions.fetch_add(positions, std::memory_order::relaxed) + positions;
+                if (s_maxPositions > 0 && globalTotal >= s_maxPositions) {
+                    s_stop.store(true, std::memory_order::seq_cst);
+                }
 
                 if (((game + 1) % kReportInterval) == 0 || s_stop.load(std::memory_order::seq_cst)) {
                     const auto time = startTime.elapsed();
@@ -339,6 +379,12 @@ namespace stormphrax::datagen {
         }
 
         template void runThread<Marlinformat>(u32 id, bool dfrc, u64 seed, const std::filesystem::path& outDir);
+        template void runThread<CrazyhouseMarlinformat>(
+            u32 id,
+            bool dfrc,
+            u64 seed,
+            const std::filesystem::path& outDir
+        );
         template void runThread<Viriformat>(u32 id, bool dfrc, u64 seed, const std::filesystem::path& outDir);
         template void runThread<Fen>(u32 id, bool dfrc, u64 seed, const std::filesystem::path& outDir);
     } // namespace
@@ -347,15 +393,23 @@ namespace stormphrax::datagen {
         const std::function<void()>& printUsage,
         std::string_view format,
         bool dfrc,
+        bool crazyhouse,
         std::string_view output,
         i32 threads,
-        std::optional<std::string_view> tbPath
+        std::optional<std::string_view> tbPath,
+        std::optional<u64> maxPositions,
+        bool datagenDropLmr
     ) {
         std::function<decltype(runThread<Marlinformat>)> threadFunc{};
 
         if (format == "marlinformat") {
-            threadFunc = runThread<Marlinformat>;
+            threadFunc = crazyhouse ? runThread<CrazyhouseMarlinformat> : runThread<Marlinformat>;
         } else if (format == "viriformat") {
+            if (crazyhouse) {
+                eprintln("viriformat is not supported for crazyhouse");
+                printUsage();
+                return 1;
+            }
             threadFunc = runThread<Viriformat>;
         } else if (format == "fen") {
             threadFunc = runThread<Fen>;
@@ -366,9 +420,20 @@ namespace stormphrax::datagen {
         }
 
         opts::mutableOpts().chess960 = dfrc;
+        opts::mutableOpts().crazyhouse = crazyhouse;
         opts::mutableOpts().evalSharpness = 100;
 
+        s_stop.store(false, std::memory_order::seq_cst);
+        s_totalPositions.store(0, std::memory_order::relaxed);
+        s_maxPositions = maxPositions.value_or(0);
+        s_datagenDropLmr = datagenDropLmr;
+
         if (tbPath) {
+            if (crazyhouse) {
+                eprintln("syzygy tables are not supported for crazyhouse");
+                return 2;
+            }
+
             println("looking for TBs in \"{}\"", *tbPath);
 
             const auto status = tb::init(*tbPath);

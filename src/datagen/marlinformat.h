@@ -20,6 +20,7 @@
 
 #include "../types.h"
 
+#include <array>
 #include <vector>
 
 #include "../position/position.h"
@@ -84,6 +85,70 @@ namespace stormphrax::datagen {
                 return board;
             }
         };
+
+        struct alignas(8) PackedCrazyhouseBoard {
+            u64 occupancy;
+            u64 promoted;
+            util::U4Array<32> pieces;
+            std::array<std::array<u8, 5>, 2> pockets;
+            u8 stmEpSquare;
+            u8 halfmoveClock;
+            u16 fullmoveNumber;
+            i16 eval;
+            Outcome wdl;
+            [[maybe_unused]] u8 extra;
+            [[maybe_unused]] std::array<u8, 6> padding{};
+
+            [[nodiscard]] static PackedCrazyhouseBoard pack(const Position& pos, i16 score) {
+                static constexpr u8 kUnmovedRook = 6;
+
+                PackedCrazyhouseBoard board{};
+
+                const auto castlingRooks = pos.castlingRooks();
+                const auto& boards = pos.boards();
+
+                auto occupancy = boards.bbs().occupancy();
+                board.occupancy = occupancy;
+                board.promoted = pos.promoted();
+
+                usize i = 0;
+                while (occupancy) {
+                    const auto square = occupancy.popLowestSquare();
+                    const auto piece = boards.pieceOn(square);
+
+                    auto pieceId = static_cast<u8>(pieceType(piece));
+
+                    if (pieceType(piece) == PieceType::kRook
+                        && (square == castlingRooks.black().kingside || square == castlingRooks.black().queenside
+                            || square == castlingRooks.white().kingside || square == castlingRooks.white().queenside))
+                    {
+                        pieceId = kUnmovedRook;
+                    }
+
+                    const u8 colorId = pieceColor(piece) == Color::kBlack ? (1 << 3) : 0;
+
+                    board.pieces[i++] = pieceId | colorId;
+                }
+
+                board.pockets = pos.pockets();
+
+                const u8 stm = pos.stm() == Color::kBlack ? (1 << 7) : 0;
+
+                const Square relativeEpSquare =
+                    pos.enPassant() == Square::kNone
+                        ? Square::kNone
+                        : toSquare(pos.stm() == Color::kBlack ? 2 : 5, squareFile(pos.enPassant()));
+
+                board.stmEpSquare = stm | static_cast<u8>(relativeEpSquare);
+                board.halfmoveClock = pos.halfmove();
+                board.fullmoveNumber = pos.fullmove();
+                board.eval = score;
+
+                return board;
+            }
+        };
+
+        static_assert(sizeof(PackedCrazyhouseBoard) == 56);
     } // namespace marlinformat
 
     class Marlinformat {
@@ -102,4 +167,21 @@ namespace stormphrax::datagen {
     };
 
     static_assert(OutputFormat<Marlinformat>);
+
+    class CrazyhouseMarlinformat {
+    public:
+        CrazyhouseMarlinformat();
+
+        static constexpr auto kExtension = "chb";
+
+        void start(const Position& initialPosition);
+        void push(bool filtered, Move move, Score score);
+        usize writeAllWithOutcome(std::ostream& stream, Outcome outcome);
+
+    private:
+        std::vector<marlinformat::PackedCrazyhouseBoard> m_positions{};
+        Position m_curr;
+    };
+
+    static_assert(OutputFormat<CrazyhouseMarlinformat>);
 } // namespace stormphrax::datagen

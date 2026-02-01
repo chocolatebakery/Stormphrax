@@ -48,7 +48,7 @@ i32 main(i32 argc, const char* argv[]) {
         } else if (mode == "datagen") {
             const auto printUsage = [&]() {
                 eprintln(
-                    "usage: {} datagen <marlinformat/viriformat/fen> <standard/dfrc> <path> [threads] [syzygy path]",
+                    "usage: {} datagen <marlinformat/viriformat/fen> <standard/dfrc/crazyhouse> <path> [threads] [drop-lmr 0/1] [max positions] [syzygy path]",
                     argv[0]
                 );
             };
@@ -59,9 +59,12 @@ i32 main(i32 argc, const char* argv[]) {
             }
 
             bool dfrc = false;
+            bool crazyhouse = false;
 
             if (std::string_view{argv[3]} == "dfrc") {
                 dfrc = true;
+            } else if (std::string_view{argv[3]} == "crazyhouse") {
+                crazyhouse = true;
             } else if (std::string_view{argv[3]} != "standard") {
                 eprintln("invalid variant {}", argv[3]);
                 printUsage();
@@ -75,12 +78,42 @@ i32 main(i32 argc, const char* argv[]) {
                 return 1;
             }
 
+            std::optional<bool> datagenDropLmr{};
             std::optional<std::string_view> tbPath{};
+            std::optional<u64> maxPositions{};
+
+            i32 argIdx = 6;
             if (argc > 6) {
-                tbPath = std::string_view{argv[6]};
+                const std::string_view maybeFlag{argv[6]};
+                if (maybeFlag == "0" || maybeFlag == "1") {
+                    datagenDropLmr = maybeFlag == "1";
+                    argIdx = 7;
+                }
             }
 
-            return datagen::run(printUsage, argv[2], dfrc, argv[4], static_cast<i32>(threads), tbPath);
+            if (argc > argIdx) {
+                u64 parsed{};
+                if (util::tryParse<u64>(parsed, argv[argIdx])) {
+                    maxPositions = parsed;
+                    if (argc > argIdx + 1) {
+                        tbPath = std::string_view{argv[argIdx + 1]};
+                    }
+                } else {
+                    tbPath = std::string_view{argv[argIdx]};
+                }
+            }
+
+            return datagen::run(
+                printUsage,
+                argv[2],
+                dfrc,
+                crazyhouse,
+                argv[4],
+                static_cast<i32>(threads),
+                tbPath,
+                maxPositions,
+                datagenDropLmr.value_or(false)
+            );
         }
 #if SP_EXTERNAL_TUNE
         else if (mode == "printwf" || mode == "printctt" || mode == "printob")

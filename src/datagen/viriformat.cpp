@@ -31,6 +31,11 @@ namespace stormphrax::datagen {
     }
 
     void Viriformat::push([[maybe_unused]] bool filtered, Move move, Score score) {
+        if (move.type() == MoveType::kDrop) {
+            eprintln("viriformat does not support crazyhouse drop moves");
+            return;
+        }
+
         static constexpr auto kMoveTypes = std::array{
             static_cast<u16>(0x0000), // normal
             static_cast<u16>(0xC000), // promo
@@ -39,10 +44,31 @@ namespace stormphrax::datagen {
         };
 
         u16 viriMove{};
+        u16 promoIdx{};
+
+        if (move.type() == MoveType::kPromotion) {
+            switch (move.promo()) {
+                case PieceType::kKnight:
+                    promoIdx = 0;
+                    break;
+                case PieceType::kBishop:
+                    promoIdx = 1;
+                    break;
+                case PieceType::kRook:
+                    promoIdx = 2;
+                    break;
+                case PieceType::kQueen:
+                    promoIdx = 3;
+                    break;
+                default:
+                    promoIdx = 0;
+                    break;
+            }
+        }
 
         viriMove |= move.fromSqIdx();
         viriMove |= move.toSqIdx() << 6;
-        viriMove |= move.promoIdx() << 12;
+        viriMove |= promoIdx << 12;
         viriMove |= kMoveTypes[static_cast<i32>(move.type())];
 
         m_moves.push_back({viriMove, static_cast<i16>(score)});

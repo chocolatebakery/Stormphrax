@@ -77,6 +77,46 @@ namespace stormphrax {
             }
         }
 
+        void generateDrops(ScoredMoveList& dst, const Position& pos, Bitboard dstMask) {
+            if (!pos.crazyhouse()) {
+                return;
+            }
+
+            const auto us = pos.stm();
+            if (!pos.hasPocketPieces(us)) {
+                return;
+            }
+
+            dstMask &= ~pos.bbs().occupancy();
+            if (dstMask.empty()) {
+                return;
+            }
+
+            static constexpr auto kDropPieces = std::array{
+                PieceType::kPawn,
+                PieceType::kKnight,
+                PieceType::kBishop,
+                PieceType::kRook,
+                PieceType::kQueen
+            };
+
+            for (const auto pt : kDropPieces) {
+                if (pos.pocketCount(us, pt) == 0) {
+                    continue;
+                }
+
+                auto mask = dstMask;
+                if (pt == PieceType::kPawn) {
+                    mask &= ~(boards::kRank1 | boards::kRank8);
+                }
+
+                while (!mask.empty()) {
+                    const auto sq = mask.popLowestSquare();
+                    dst.push({Move::drop(pt, sq), 0});
+                }
+            }
+        }
+
         template <Color kUs>
         void generatePawnsNoisy_(ScoredMoveList& noisy, const Position& pos, Bitboard dstMask) {
             static constexpr auto kThem = oppColor(kUs);
@@ -411,6 +451,7 @@ namespace stormphrax {
         generatePawnsQuiet(quiet, pos, pawnDstMask, ours | theirs);
         generateKnights(quiet, pos, dstMask);
         generateKings<true>(quiet, pos, kingDstMask);
+        generateDrops(quiet, pos, dstMask);
     }
 
     void generateAll(ScoredMoveList& dst, const Position& pos) {
@@ -431,6 +472,7 @@ namespace stormphrax {
         }
 
         auto pawnDstMask = kingDstMask;
+        auto dropDstMask = ~bbs.occupancy();
 
         if (pos.isCheck()) {
             if (pos.checkers().multiple()) {
@@ -439,6 +481,7 @@ namespace stormphrax {
             }
 
             pawnDstMask = dstMask = pos.checkers() | rayBetween(pos.king(us), pos.checkers().lowestSquare());
+            dropDstMask = rayBetween(pos.king(us), pos.checkers().lowestSquare());
 
             if (!(pos.checkers() & epPawn).empty()) {
                 pawnDstMask |= epMask;
@@ -450,5 +493,6 @@ namespace stormphrax {
         generatePawnsQuiet(dst, pos, dstMask, bbs.occupancy());
         generateKnights(dst, pos, dstMask);
         generateKings<true>(dst, pos, kingDstMask);
+        generateDrops(dst, pos, dropDstMask);
     }
 } // namespace stormphrax

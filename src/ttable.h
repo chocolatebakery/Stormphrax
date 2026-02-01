@@ -105,7 +105,7 @@ namespace stormphrax {
             }
         };
 
-        static_assert(sizeof(Entry) == 10);
+        static_assert(sizeof(Entry) == 12 || sizeof(Entry) == 16);
 
         static constexpr usize kSmallPageSize = 4096;
         static constexpr auto kDefaultStorageAlignment = std::max(kCacheLineSize, kSmallPageSize);
