@@ -48,7 +48,7 @@ i32 main(i32 argc, const char* argv[]) {
         } else if (mode == "datagen") {
             const auto printUsage = [&]() {
                 eprintln(
-                    "usage: {} datagen <marlinformat/viriformat/fen> <standard/dfrc/crazyhouse> <path> [threads] [drop-lmr 0/1] [max positions] [syzygy path]",
+                    "usage: {} datagen <marlinformat/viriformat/fen> <standard/dfrc/crazyhouse> <path> [threads] [max positions] [syzygy path]",
                     argv[0]
                 );
             };
@@ -78,19 +78,10 @@ i32 main(i32 argc, const char* argv[]) {
                 return 1;
             }
 
-            std::optional<bool> datagenDropLmr{};
             std::optional<std::string_view> tbPath{};
             std::optional<u64> maxPositions{};
 
             i32 argIdx = 6;
-            if (argc > 6) {
-                const std::string_view maybeFlag{argv[6]};
-                if (maybeFlag == "0" || maybeFlag == "1") {
-                    datagenDropLmr = maybeFlag == "1";
-                    argIdx = 7;
-                }
-            }
-
             if (argc > argIdx) {
                 u64 parsed{};
                 if (util::tryParse<u64>(parsed, argv[argIdx])) {
@@ -111,8 +102,7 @@ i32 main(i32 argc, const char* argv[]) {
                 argv[4],
                 static_cast<i32>(threads),
                 tbPath,
-                maxPositions,
-                datagenDropLmr.value_or(false)
+                maxPositions
             );
         }
 #if SP_EXTERNAL_TUNE

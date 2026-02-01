@@ -34,7 +34,6 @@ namespace stormphrax::datagen {
         std::string_view output,
         i32 threads,
         std::optional<std::string_view> tbPath,
-        std::optional<u64> maxPositions,
-        bool datagenDropLmr
+        std::optional<u64> maxPositions
     );
 }

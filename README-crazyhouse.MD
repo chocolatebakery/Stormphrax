@@ -1,52 +1,64 @@
 # Stormphrax Crazyhouse
 
-## Como ativar
+## How to enable
 - **UCI**: `setoption name UCI_Variant value crazyhouse`
-- **Datagen**: `stormphrax datagen marlinformat crazyhouse <outdir> [threads] [syzygy path]`
+- **Datagen**: `stormphrax datagen marlinformat crazyhouse <outdir> [threads] [max positions] [syzygy path]`
 
-Notas:
-- `UCI_Chess960` é desativado automaticamente em Crazyhouse.
-- Syzygy (TB) não é suportado em Crazyhouse.
+Notes:
+- `UCI_Chess960` is automatically disabled in Crazyhouse.
+- Syzygy (TB) is not supported in Crazyhouse.
 
-## FEN e notação de drops
-- FEN com bolsos no fim da parte do tabuleiro:  
+## Build (AVX2, with and without PGO)
+No PGO (default):
+- `make avx2`
+- Optional: `make avx2 DEFAULT_NET=zh-03 VERSION=zh03`
+
+With PGO (uses `bench` to generate a profile automatically):
+- `make avx2 PGO=on`
+- Optional: `make avx2 PGO=on DEFAULT_NET=zh-03 VERSION=zh03`
+
+Notes:
+- PGO requires `llvm-profdata` on PATH (Clang). If missing, PGO is disabled automatically.
+
+## FEN and drop notation
+- FEN with pockets at the end of the board part:
   `r1bqkbnr/pppp1ppp/2n5/4N3/4P3/8/PPPP1PPP/RNBQKB1R[P] b KQkq - 0 3`
-- Peças **promovidas** marcadas com `~` após a peça (formato fairy/cutechess).
-- Drops em UCI: `P@e4` (a letra indica a peça, a cor é do lado a jogar).
-- Peões **não podem** ser dropados na 1ª/8ª fila.
+- Promoted pieces are marked with `~` after the piece (fairy/cutechess format).
+- Drops in UCI: `P@e4` (the letter indicates the piece; color is side to move).
+- Pawns **cannot** be dropped on the 1st/8th ranks.
 
-## Formato binário (marlinformat crazyhouse)
-Quando `UCI_Variant = crazyhouse`, o `marlinformat` escreve em **.chb** (CrazyHouse Binary).
+## Binary format (marlinformat crazyhouse)
+When `UCI_Variant = crazyhouse`, `marlinformat` writes **.chb** (CrazyHouse Binary).
 
 Layout (56 bytes, little-endian):
 - `u64 occupancy`
-- `u64 promoted` (bitboard das peças promovidas)
-- `u8 pcs[16]` (32 nibbles, mesmo esquema do marlinformat)
-- `u8 pockets[2][5]` (índices: `0=preto,1=branco`; ordem: Pawn, Knight, Bishop, Rook, Queen)
-- `u8 stm_ep` (bit 7 = side-to-move; bits 0-5 = EP square relativo, igual ao marlinformat)
+- `u64 promoted` (bitboard of promoted pieces)
+- `u8 pcs[16]` (32 nibbles, same scheme as marlinformat)
+- `u8 pockets[2][5]` (indices: `0=black,1=white`; order: Pawn, Knight, Bishop, Rook, Queen)
+- `u8 stm_ep` (bit 7 = side-to-move; bits 0-5 = EP square relative, same as marlinformat)
 - `u8 halfmove`
 - `u16 fullmove`
-- `i16 eval` (score **white POV**, igual ao marlinformat)
+- `i16 eval` (score **white POV**, same as marlinformat)
 - `u8 wdl` (`0=white loss`, `1=draw`, `2=white win`)
 - `u8 extra`
 - `u8 padding[6]`
 
 ## Bullet (trainer)
-- **Tipo**: `game::formats::crazyhouse::CrazyhouseMarlinFormat`
-- **Adapter**: `inputs::CrazyhouseMarlinFormatAdapter<T>` (para reutilizar inputs de xadrez)
-  - Ex.: `CrazyhouseMarlinFormatAdapter(ChessBuckets::new(...))`
-- **Inputs Crazyhouse**: `inputs::CrazyhouseBucketsMergedKings` / `inputs::CrazyhouseBucketsMergedKingsMirrored` (864xN)
-- **Input simples**: `inputs::CrazyhouseChess768` (928)
-- **Loader**: `DirectSequentialDataLoader` com `CrazyhouseMarlinFormat`
-- **Exemplo**: `bullet/examples/simple_crazyhouse.rs`
+- **Type**: `game::formats::crazyhouse::CrazyhouseMarlinFormat`
+- **Adapter**: `inputs::CrazyhouseMarlinFormatAdapter<T>` (to reuse chess inputs)
+  - Example: `CrazyhouseMarlinFormatAdapter(ChessBuckets::new(...))`
+- **Crazyhouse inputs**: `inputs::CrazyhouseBucketsMergedKings` / `inputs::CrazyhouseBucketsMergedKingsMirrored` (864xN)
+- **Simple input**: `inputs::CrazyhouseChess768` (928)
+- **Loader**: `DirectSequentialDataLoader` with `CrazyhouseMarlinFormat`
+- **Example**: `bullet/examples/simple_crazyhouse.rs`
 
-## Notas e limitações atuais
-- `viriformat` não suporta drops (Crazyhouse).
-- NNUE agora inclui bolsos (5x16 por cor). Redes antigas nao sao compativeis.
-- Arquitetura NNUE simples: 928 inputs (768+160), sem buckets, L1=64.
-- SEE ajustado para Crazyhouse (threshold/2).
+## Current notes and limitations
+- `viriformat` does not support drops (Crazyhouse).
+- NNUE now includes pockets (5x16 per color). Old nets are not compatible.
+- Simple NNUE architecture: 928 inputs (768+160), no buckets, L1=64.
+- SEE adjusted for Crazyhouse (threshold/2).
 
-## Script de pesos aleatorios (NNUE)
+## Random weights script (NNUE)
 - Script: `Stormphrax/tools/gen_random_nnue.py`
-- Exemplo: `python Stormphrax/tools/gen_random_nnue.py --out Stormphrax/crazyhouse-rand-64.nnue --name crazyhouse-rand-64`
-- Para usar no build: atualiza `Stormphrax/network.txt` com o nome base (sem .nnue) e recompila.
+- Example: `python Stormphrax/tools/gen_random_nnue.py --out Stormphrax/crazyhouse-rand-64.nnue --name crazyhouse-rand-64`
+- To use in build: update `Stormphrax/network.txt` with the base name (without .nnue) and rebuild.

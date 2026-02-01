@@ -397,8 +397,7 @@ namespace stormphrax::datagen {
         std::string_view output,
         i32 threads,
         std::optional<std::string_view> tbPath,
-        std::optional<u64> maxPositions,
-        bool datagenDropLmr
+        std::optional<u64> maxPositions
     ) {
         std::function<decltype(runThread<Marlinformat>)> threadFunc{};
 
@@ -426,7 +425,7 @@ namespace stormphrax::datagen {
         s_stop.store(false, std::memory_order::seq_cst);
         s_totalPositions.store(0, std::memory_order::relaxed);
         s_maxPositions = maxPositions.value_or(0);
-        s_datagenDropLmr = datagenDropLmr;
+        s_datagenDropLmr = crazyhouse;
 
         if (tbPath) {
             if (crazyhouse) {
