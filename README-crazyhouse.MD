@@ -8,6 +8,18 @@ Notes:
 - `UCI_Chess960` is automatically disabled in Crazyhouse.
 - Syzygy (TB) is not supported in Crazyhouse.
 
+## Quick workflow (clear steps)
+1) Build an AVX2 binary:
+   - `make avx2 DEFAULT_NET=zh-03 VERSION=zh03`
+2) Generate data (writes .chb files):
+   - `stormphrax datagen marlinformat crazyhouse .\data 6 2000000`
+3) Train in Bullet:
+   - `cargo run --release --example simple_crazyhouse_04 -- .\Stormphrax\data\*.chb`
+4) Use the new net in Stormphrax:
+   - copy the `.nnue` into `Stormphrax/`
+   - update `Stormphrax/network.txt` with the base name (no extension)
+   - rebuild with `make avx2 DEFAULT_NET=<name> VERSION=<tag>`
+
 ## Build (AVX2, with and without PGO)
 No PGO (default):
 - `make avx2`
@@ -62,3 +74,8 @@ Layout (56 bytes, little-endian):
 - Script: `Stormphrax/tools/gen_random_nnue.py`
 - Example: `python Stormphrax/tools/gen_random_nnue.py --out Stormphrax/crazyhouse-rand-64.nnue --name crazyhouse-rand-64`
 - To use in build: update `Stormphrax/network.txt` with the base name (without .nnue) and rebuild.
+
+## Rename datagen files
+- Script: `Stormphrax/tools/rename_datagen_files.py`
+- Example: `python Stormphrax/tools/rename_datagen_files.py Stormphrax/data --prefix zh-04`
+- Dry run: `python Stormphrax/tools/rename_datagen_files.py Stormphrax/data --prefix zh-04 --dry-run`
