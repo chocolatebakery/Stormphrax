@@ -27,6 +27,7 @@
 
 #include "bitboard.h"
 #include "move.h"
+#include "position/position.h"
 #include "tunable.h"
 #include "util/multi_array.h"
 
@@ -99,6 +100,10 @@ namespace stormphrax {
             std::memset(&m_pieceTo, 0, sizeof(m_pieceTo));
             std::memset(&m_continuation, 0, sizeof(m_continuation));
             std::memset(&m_noisy, 0, sizeof(m_noisy));
+            std::memset(&m_drop, 0, sizeof(m_drop));
+            std::memset(&m_dropCheck, 0, sizeof(m_dropCheck));
+            std::memset(&m_lowPly, 0, sizeof(m_lowPly));
+            std::memset(&m_pawn, 0, sizeof(m_pawn));
         }
 
         [[nodiscard]] inline const ContinuationSubtable& contTable(Piece moving, Square to) const {
@@ -128,10 +133,34 @@ namespace stormphrax {
             std::span<ContinuationSubtable*> continuations,
             i32 ply,
             Bitboard threats,
+            const Position& pos,
             Piece moving,
             Move move,
             HistoryScore bonus
         ) {
+            const auto movingType = pieceType(moving);
+            if (movingType == PieceType::kPawn) {
+                pawnEntry(moving, move).update(bonus);
+            }
+            if (ply <= tunable::lowPlyHistoryDepth()) {
+                lowPlyEntry(moving, move).update(bonus);
+            }
+
+            if (move.type() == MoveType::kDrop) {
+                auto& dropHist = dropEntry(move.promo(), move.toSq());
+                dropHist.update(bonus);
+                if (pos.givesCheck(move)) {
+                    dropCheckEntry(move.promo(), move.toSq()).update(bonus);
+                }
+
+                const auto base =
+                    static_cast<i32>(dropHist) + getConthist(continuations, ply, moving, move) / 2;
+                updateConthist(continuations, ply, moving, move, base, bonus, 1);
+                updateConthist(continuations, ply, moving, move, base, bonus, 2);
+                updateConthist(continuations, ply, moving, move, base, bonus, 4);
+                return;
+            }
+
             butterflyEntry(threats, move).update(bonus);
             pieceToEntry(threats, moving, move).update(bonus);
             updateConthist(continuations, ply, threats, moving, move, bonus);
@@ -168,9 +197,28 @@ namespace stormphrax {
             Move move
         ) const {
             i32 score{};
+            const auto movingType = pieceType(moving);
+
+            if (move.type() == MoveType::kDrop) {
+                score += dropEntry(move.promo(), move.toSq()) * tunable::dropHistoryWeight();
+                score += getConthist(continuations, ply, moving, move);
+                if (movingType == PieceType::kPawn) {
+                    score += pawnEntry(moving, move) * tunable::pawnHistoryWeight();
+                }
+                if (ply <= tunable::lowPlyHistoryDepth()) {
+                    score += lowPlyEntry(moving, move) * tunable::lowPlyHistoryWeight();
+                }
+                return score;
+            }
 
             score += getMainHist(threats, moving, move);
             score += getConthist(continuations, ply, moving, move);
+            if (movingType == PieceType::kPawn) {
+                score += pawnEntry(moving, move) * tunable::pawnHistoryWeight();
+            }
+            if (ply <= tunable::lowPlyHistoryDepth()) {
+                score += lowPlyEntry(moving, move) * tunable::lowPlyHistoryWeight();
+            }
 
             return score;
         }
@@ -190,6 +238,17 @@ namespace stormphrax {
         // [from][to][captured][defended]
         // additional slot for non-capture queen promos
         util::MultiArray<HistoryEntry, 64, 64, 13, 2> m_noisy{};
+
+        // [drop piece type][to]
+        util::MultiArray<HistoryEntry, 5, 64> m_drop{};
+        // [drop piece type][to] for drop-checks
+        util::MultiArray<HistoryEntry, 5, 64> m_dropCheck{};
+
+        // [piece][to] at low ply
+        util::MultiArray<HistoryEntry, 12, 64> m_lowPly{};
+
+        // [piece][to] for pawns only
+        util::MultiArray<HistoryEntry, 12, 64> m_pawn{};
 
         static inline void updateConthist(
             std::span<ContinuationSubtable*> continuations,
@@ -257,6 +316,48 @@ namespace stormphrax {
 
         [[nodiscard]] inline HistoryEntry& noisyEntry(Move move, Piece captured, bool defended) {
             return m_noisy[move.fromSqIdx()][move.toSqIdx()][static_cast<i32>(captured)][defended];
+        }
+
+        [[nodiscard]] static constexpr i32 dropIndex(PieceType piece) {
+            assert(piece != PieceType::kNone && piece != PieceType::kKing);
+            return static_cast<i32>(piece);
+        }
+
+        [[nodiscard]] inline const HistoryEntry& dropEntry(PieceType piece, Square to) const {
+            return m_drop[dropIndex(piece)][static_cast<i32>(to)];
+        }
+
+        [[nodiscard]] inline HistoryEntry& dropEntry(PieceType piece, Square to) {
+            return m_drop[dropIndex(piece)][static_cast<i32>(to)];
+        }
+
+        [[nodiscard]] inline const HistoryEntry& dropCheckEntry(PieceType piece, Square to) const {
+            return m_dropCheck[dropIndex(piece)][static_cast<i32>(to)];
+        }
+
+        [[nodiscard]] inline HistoryEntry& dropCheckEntry(PieceType piece, Square to) {
+            return m_dropCheck[dropIndex(piece)][static_cast<i32>(to)];
+        }
+
+    public:
+        [[nodiscard]] inline i32 dropCheckScore(PieceType piece, Square to) const {
+            return dropCheckEntry(piece, to);
+        }
+
+        [[nodiscard]] inline const HistoryEntry& lowPlyEntry(Piece moving, Move move) const {
+            return m_lowPly[static_cast<i32>(moving)][move.toSqIdx()];
+        }
+
+        [[nodiscard]] inline HistoryEntry& lowPlyEntry(Piece moving, Move move) {
+            return m_lowPly[static_cast<i32>(moving)][move.toSqIdx()];
+        }
+
+        [[nodiscard]] inline const HistoryEntry& pawnEntry(Piece moving, Move move) const {
+            return m_pawn[static_cast<i32>(moving)][move.toSqIdx()];
+        }
+
+        [[nodiscard]] inline HistoryEntry& pawnEntry(Piece moving, Move move) {
+            return m_pawn[static_cast<i32>(moving)][move.toSqIdx()];
         }
     };
 } // namespace stormphrax

@@ -231,6 +231,12 @@ namespace stormphrax::tunable {
     SP_TUNABLE_PARAM(lmrDeeperScale, 4, 3, 12, 1)
 
     SP_TUNABLE_PARAM(maxHistory, 15769, 8192, 32768, 256)
+    SP_TUNABLE_PARAM(dropHistoryWeight, 2, 0, 6, 1)
+    SP_TUNABLE_PARAM(dropCheckHistoryWeight, 3, 0, 8, 1)
+    SP_TUNABLE_PARAM(lowPlyHistoryDepth, 3, 1, 8, 1)
+    SP_TUNABLE_PARAM(lowPlyHistoryWeight, 1, 0, 4, 1)
+    SP_TUNABLE_PARAM(pawnHistoryWeight, 1, 0, 4, 1)
+    SP_TUNABLE_PARAM(quietCheckBonus, 256, 0, 1024, 32)
 
     SP_TUNABLE_PARAM(maxHistoryBonus, 2576, 1024, 4096, 256)
     SP_TUNABLE_PARAM(historyBonusDepthScale, 280, 128, 512, 32)

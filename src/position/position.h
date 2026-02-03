@@ -427,6 +427,110 @@ namespace stormphrax {
             return !m_checkers.empty();
         }
 
+        [[nodiscard]] inline bool givesCheck(Move move) const {
+            if (!move || move == kNullMove) {
+                return false;
+            }
+
+            const auto us = stm();
+            const auto kingSq = oppKing(us);
+
+            const auto& bbs = m_boards.bbs();
+            Bitboard occ = bbs.occupancy();
+
+            const auto to = move.toSq();
+            const auto toMask = Bitboard{squareBit(to)};
+
+            if (move.type() == MoveType::kDrop) {
+                const auto pt = move.promo();
+                occ |= toMask;
+
+                if (pt == PieceType::kPawn) {
+                    return !(toMask & attacks::getPawnAttacks(kingSq, oppColor(us))).empty();
+                }
+                if (pt == PieceType::kKnight) {
+                    return !(toMask & attacks::getKnightAttacks(kingSq)).empty();
+                }
+                if (pt == PieceType::kKing) {
+                    return !(toMask & attacks::getKingAttacks(kingSq)).empty();
+                }
+                if (pt == PieceType::kBishop || pt == PieceType::kQueen) {
+                    if (!(toMask & attacks::getBishopAttacks(kingSq, occ)).empty()) {
+                        return true;
+                    }
+                }
+                if (pt == PieceType::kRook || pt == PieceType::kQueen) {
+                    if (!(toMask & attacks::getRookAttacks(kingSq, occ)).empty()) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            if (move.type() == MoveType::kCastling) {
+                return false;
+            }
+
+            const auto from = move.fromSq();
+            const auto fromMask = Bitboard{squareBit(from)};
+
+            occ ^= fromMask;
+            occ |= toMask;
+
+            const auto moving = m_boards.pieceOn(from);
+            const auto movingType = pieceType(moving);
+            auto afterType = movingType;
+
+            if (move.type() == MoveType::kPromotion) {
+                afterType = move.promo();
+            }
+
+            if (afterType == PieceType::kPawn) {
+                if (!(toMask & attacks::getPawnAttacks(kingSq, oppColor(us))).empty()) {
+                    return true;
+                }
+            } else if (afterType == PieceType::kKnight) {
+                if (!(toMask & attacks::getKnightAttacks(kingSq)).empty()) {
+                    return true;
+                }
+            } else if (afterType == PieceType::kKing) {
+                if (!(toMask & attacks::getKingAttacks(kingSq)).empty()) {
+                    return true;
+                }
+            }
+
+            auto usRooks = bbs.rooks(us);
+            auto usBishops = bbs.bishops(us);
+            auto usQueens = bbs.queens(us);
+
+            if (movingType == PieceType::kRook) {
+                usRooks ^= fromMask;
+            } else if (movingType == PieceType::kBishop) {
+                usBishops ^= fromMask;
+            } else if (movingType == PieceType::kQueen) {
+                usQueens ^= fromMask;
+            }
+
+            if (afterType == PieceType::kRook) {
+                usRooks |= toMask;
+            } else if (afterType == PieceType::kBishop) {
+                usBishops |= toMask;
+            } else if (afterType == PieceType::kQueen) {
+                usQueens |= toMask;
+            }
+
+            if (!((usRooks | usQueens) & attacks::getRookAttacks(kingSq, occ)).empty()) {
+                return true;
+            }
+
+            if (!((usBishops | usQueens) & attacks::getBishopAttacks(kingSq, occ)).empty()) {
+                return true;
+            }
+
+            return false;
+        }
+
         [[nodiscard]] inline Bitboard checkers() const {
             return m_checkers;
         }

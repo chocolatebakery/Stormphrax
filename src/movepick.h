@@ -366,13 +366,24 @@ namespace stormphrax {
         }
 
         inline void scoreQuiet(ScoredMove& move) {
-            move.score = m_history.quietScore(
+            auto score = m_history.quietScore(
                 m_continuations,
                 m_ply,
                 m_pos.threats(),
                 m_pos.movingPiece(move.move),
                 move.move
             );
+
+            if (m_pos.givesCheck(move.move)) {
+                score += tunable::quietCheckBonus();
+
+                if (move.move.type() == MoveType::kDrop) {
+                    score += m_history.dropCheckScore(move.move.promo(), move.move.toSq())
+                           * tunable::dropCheckHistoryWeight();
+                }
+            }
+
+            move.score = score;
         }
 
         inline void scoreQuiets() {

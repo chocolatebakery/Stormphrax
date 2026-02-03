@@ -630,6 +630,7 @@ namespace stormphrax::search {
                         thread.conthist,
                         ply,
                         pos.threats(),
+                        pos,
                         pos.movingPiece(ttEntry.move),
                         ttEntry.move,
                         bonus
@@ -1200,6 +1201,7 @@ namespace stormphrax::search {
                     thread.conthist,
                     ply,
                     pos.threats(),
+                    pos,
                     pos.movingPiece(bestMove),
                     bestMove,
                     bonus
@@ -1210,6 +1212,7 @@ namespace stormphrax::search {
                         thread.conthist,
                         ply,
                         pos.threats(),
+                        pos,
                         pos.movingPiece(prevQuiet),
                         prevQuiet,
                         penalty
