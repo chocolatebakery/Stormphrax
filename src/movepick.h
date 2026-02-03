@@ -295,10 +295,9 @@ namespace stormphrax {
             const KillerTable& killers,
             const HistoryTables& history,
             std::span<ContinuationSubtable* const> continuations,
-            i32 ply,
-            i32 depth
+            i32 ply
         ) {
-            return MoveGenerator{MovegenStage::kTtMove, pos, data, ttMove, &killers, history, continuations, ply, depth};
+            return MoveGenerator{MovegenStage::kTtMove, pos, data, ttMove, &killers, history, continuations, ply};
         }
 
         [[nodiscard]] static inline MoveGenerator qsearch(
@@ -310,7 +309,7 @@ namespace stormphrax {
             i32 ply
         ) {
             const auto stage = pos.isCheck() ? MovegenStage::kQsearchEvasionsTtMove : MovegenStage::kQsearchTtMove;
-            return MoveGenerator{stage, pos, data, ttMove, nullptr, history, continuations, ply, 0};
+            return MoveGenerator{stage, pos, data, ttMove, nullptr, history, continuations, ply};
         }
 
         [[nodiscard]] static inline MoveGenerator probcut(
@@ -319,7 +318,7 @@ namespace stormphrax {
             MovegenData& data,
             const HistoryTables& history
         ) {
-            return MoveGenerator{MovegenStage::kProbcutTtMove, pos, data, ttMove, nullptr, history, {}, 0, 0};
+            return MoveGenerator{MovegenStage::kProbcutTtMove, pos, data, ttMove, nullptr, history, {}, 0};
         }
 
     private:
@@ -331,8 +330,7 @@ namespace stormphrax {
             const KillerTable* killers,
             const HistoryTables& history,
             std::span<ContinuationSubtable* const> continuations,
-            i32 ply,
-            i32 depth
+            i32 ply
         ) :
                 m_stage{initialStage},
                 m_pos{pos},
@@ -340,8 +338,7 @@ namespace stormphrax {
                 m_ttMove{ttMove},
                 m_history{history},
                 m_continuations{continuations},
-                m_ply{ply},
-                m_depth{depth} {
+                m_ply{ply} {
             if (killers) {
                 m_killers = *killers;
             }
@@ -366,7 +363,6 @@ namespace stormphrax {
             for (u32 i = m_idx; i < m_end; ++i) {
                 scoreNoisy(m_data.moves[i]);
             }
-            m_sortedEnd = 0;
         }
 
         inline void scoreQuiet(ScoredMove& move) {
@@ -393,12 +389,6 @@ namespace stormphrax {
         inline void scoreQuiets() {
             for (u32 i = m_idx; i < m_end; ++i) {
                 scoreQuiet(m_data.moves[i]);
-            }
-
-            m_sortedEnd = 0;
-            if (m_depth > 0) {
-                const auto threshold = -tunable::quietSortThresholdScale() * m_depth;
-                partialInsertionSort(threshold);
             }
         }
 
@@ -427,16 +417,7 @@ namespace stormphrax {
         template <bool kSort = true>
         [[nodiscard]] inline Move selectNext(auto predicate) {
             while (m_idx < m_end) {
-                u32 idx{};
-                if constexpr (kSort) {
-                    if (m_idx < m_sortedEnd) {
-                        idx = m_idx++;
-                    } else {
-                        idx = findNext();
-                    }
-                } else {
-                    idx = m_idx++;
-                }
+                const auto idx = kSort ? findNext() : m_idx++;
                 const auto move = m_data.moves[idx].move;
 
                 if (predicate(move)) {
@@ -451,30 +432,6 @@ namespace stormphrax {
             return move == m_ttMove || move == m_killers.killer;
         }
 
-        inline void partialInsertionSort(i32 threshold) {
-            const u32 start = m_idx;
-            u32 sorted = start;
-
-            for (u32 i = start; i < m_end; ++i) {
-                if (m_data.moves[i].score <= threshold) {
-                    continue;
-                }
-
-                auto move = m_data.moves[i];
-                u32 j = i;
-
-                while (j > sorted && m_data.moves[j - 1].score < move.score) {
-                    m_data.moves[j] = m_data.moves[j - 1];
-                    --j;
-                }
-
-                m_data.moves[j] = move;
-                ++sorted;
-            }
-
-            m_sortedEnd = sorted;
-        }
-
         MovegenStage m_stage;
 
         const Position& m_pos;
@@ -487,7 +444,6 @@ namespace stormphrax {
 
         std::span<ContinuationSubtable* const> m_continuations;
         i32 m_ply{};
-        i32 m_depth{};
 
         bool m_skipQuiets{false};
 
@@ -495,6 +451,5 @@ namespace stormphrax {
         u32 m_end{};
 
         u32 m_badNoisyEnd{};
-        u32 m_sortedEnd{};
     };
 } // namespace stormphrax
