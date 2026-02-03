@@ -882,7 +882,16 @@ namespace stormphrax::search {
         auto ttFlag = TtFlag::kUpperBound;
 
         auto generator =
-            MoveGenerator::main(pos, moveStack.movegenData, ttMove, curr.killers, thread.history, thread.conthist, ply);
+            MoveGenerator::main(
+                pos,
+                moveStack.movegenData,
+                ttMove,
+                curr.killers,
+                thread.history,
+                thread.conthist,
+                ply,
+                depth
+            );
 
         u32 legalMoves = 0;
 
