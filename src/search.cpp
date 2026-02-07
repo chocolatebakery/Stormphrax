@@ -409,6 +409,10 @@ namespace stormphrax::search {
         for (i32 depth = 1;; ++depth) {
             searchData.rootDepth = depth;
 
+            for (auto& move : thread.rootMoves) {
+                move.previousScore = move.score;
+            }
+
             for (thread.pvIdx = 0; thread.pvIdx < m_multiPv; ++thread.pvIdx) {
                 searchData.seldepth = 0;
 
@@ -418,7 +422,7 @@ namespace stormphrax::search {
                 auto beta = kScoreInf;
 
                 if (depth >= 3) {
-                    const auto lastScore = thread.rootMoves[thread.pvIdx].score;
+                    const auto lastScore = thread.rootMoves[thread.pvIdx].windowScore;
 
                     alpha = std::max(lastScore - delta, -kScoreInf);
                     beta = std::min(lastScore + delta, kScoreInf);
@@ -858,7 +862,7 @@ namespace stormphrax::search {
                         m_ttable.put(
                             pos.key(),
                             score,
-                            curr.staticEval,
+                            rawStaticEval,
                             move,
                             probcutDepth,
                             ply,
@@ -1128,11 +1132,13 @@ namespace stormphrax::search {
                     std::terminate();
                 }
 
+                rootMove->windowScore = score;
+
                 if (legalMoves == 1 || score > alpha) {
                     rootMove->seldepth = thread.search.seldepth;
 
-                    rootMove->displayScore = score;
                     rootMove->score = score;
+                    rootMove->displayScore = score;
 
                     rootMove->upperbound = false;
                     rootMove->lowerbound = false;
@@ -1435,8 +1441,12 @@ namespace stormphrax::search {
     void Searcher::reportSingle(const ThreadData& thread, u32 pvIdx, i32 depth, f64 time) {
         const auto& move = thread.rootMoves[pvIdx];
 
-        auto score = move.score == -kScoreInf ? move.displayScore : move.score;
-        depth = move.score == -kScoreInf ? std::max(1, depth - 1) : depth;
+        auto score = move.displayScore;
+
+        if (move.score == -kScoreInf) {
+            score = move.previousScore;
+            depth = std::max(1, depth - 1);
+        }
 
         usize nodes = 0;
 
