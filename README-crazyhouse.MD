@@ -79,3 +79,14 @@ Layout (56 bytes, little-endian):
 - Script: `Stormphrax/tools/rename_datagen_files.py`
 - Example: `python Stormphrax/tools/rename_datagen_files.py Stormphrax/data --prefix zh-04`
 - Dry run: `python Stormphrax/tools/rename_datagen_files.py Stormphrax/data --prefix zh-04 --dry-run`
+
+## Interleave / Shuffle .chb (bullet_utils)
+Interleave multiple .chb files into a single mixed file:
+```
+cargo run --release -p bullet_utils -- interleave-chb -o merged.chb file1.chb file2.chb file3.chb
+```
+
+Shuffle a single .chb file (full shuffle, record size 56 bytes):
+```
+cargo run --release -p bullet_utils -- shuffle-chb -i input.chb -o output.chb -m 1024
+```
